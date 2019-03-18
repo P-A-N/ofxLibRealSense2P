@@ -1,6 +1,7 @@
 #pragma once
 
 #include <librealsense2/rs.hpp> 
+#include <librealsense2/rsutil.h>
 #include "ofMain.h"
 #include "ofxGui.h"
 
@@ -18,6 +19,7 @@ public:
 	}
 
 	void setupDevice(int deviceID = 0);
+	void load(string path);
 
 	void enableColor(int width, int height, int fps = 60);
 	void enableIr(int width, int height, int fps = 60);
@@ -26,6 +28,7 @@ public:
 	void update();
 
 	float getDistanceAt(int x, int y);
+	glm::vec3 getWorldCoordinateAt(float x, float y);
 
 	ofxGuiGroup* setupGUI();
 	void onD400BoolParamChanged(bool &value);
@@ -33,24 +36,44 @@ public:
 	void onD400ColorizerParamChanged(float &value);
 	ofxGuiGroup* getGui();
 
-	void drawDepthRaw()
+
+	void setAligned(bool aligned)
 	{
-		raw_depth_texture.draw(0, 0);
+		if (aligned && !this->bAligned)
+		{
+			if (depth_enabled)
+			{
+				depth_texture->allocate(color_width, color_height, GL_RGB);
+				raw_depth_texture->allocate(color_width, color_height, GL_R16);
+				depth_width = color_width;
+				depth_height = color_height;
+			}
+		}
+		this->bAligned = aligned;
 	}
 
-	void drawDepth()
+	void drawDepthRaw(int x, int y)
 	{
-		depth_texture.draw(0, 0);
+		if (depth_enabled)
+			raw_depth_texture->draw(x, y);
 	}
 
-	void drawColor()
+	void drawDepth(int x, int y)
 	{
-		col_tex.draw(0, 0);
+		if(depth_enabled)
+			depth_texture->draw(x, y);
 	}
 
-	void drawIR()
+	void drawColor(int x, int y)
 	{
-		ir_tex.draw(0, 0);
+		if (color_enabled)
+			color_texture->draw(x, y);
+	}
+
+	void drawIR(int x, int y)
+	{
+		if (ir_enabled)
+			ir_tex->draw(x, y);
 	}
 
 	float getDepthWidth()
@@ -65,17 +88,49 @@ public:
 
 	float getColorWidth()
 	{
+		if (bAligned)
+		{
+			rs2::frame color;
+			rs2video_queue.poll_for_frame(&color);
+			return color.as<rs2::video_frame>().get_width();
+		}
 		return color_width;
 	}
 
 	float getColorHeight()
 	{
+		if (bAligned)
+		{
+			rs2::frame color;
+			rs2video_queue.poll_for_frame(&color);
+			return color.as<rs2::video_frame>().get_height();
+		}
 		return color_height;
 	}
 
 	bool isFrameNew()
 	{
 		return bFrameNew;
+	}
+
+	shared_ptr<ofTexture> getDepthTexture()
+	{
+		return depth_texture;
+	}
+
+	shared_ptr<ofTexture> getDepthRawTexture()
+	{
+		return raw_depth_texture;
+	}
+
+	shared_ptr<ofTexture> getColorTexture()
+	{
+		return color_texture;
+	}
+
+	float getDepthScale()
+	{
+		return depthScale;
 	}
 
 	void startStream();
@@ -91,6 +146,9 @@ private:
 	rs2::frame_queue rs2video_queue;
 	rs2::frame_queue rs2ir_queue;
 
+
+	rs2::frame _depth;
+
 	//attribute
 	ofxGuiGroup     _D400Params;
 	ofxToggle       _autoExposure;
@@ -99,8 +157,10 @@ private:
 	ofxFloatSlider  _depthMin;
 	ofxFloatSlider  _depthMax;
 
-	uint8_t         *_colBuff, *_irBuff, *_depthBuff;
-	uint16_t        *_rawDepthBuff;
+	ofPixels         _colBuff, _irBuff, _depthBuff;
+	ofShortPixels    _rawDepthBuff;
+
+	float depthScale;
 
 	int deviceId;
 	string device_serial;
@@ -112,7 +172,10 @@ private:
 	int ir_width, ir_height;
 	int depth_width, depth_height;
 
-	ofTexture depth_texture, raw_depth_texture, col_tex, ir_tex;
+	bool bReadFile = false;
+	bool bAligned = false;
+
+	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
 
 
 	void start()
@@ -123,5 +186,19 @@ private:
 	void stop()
 	{
 		stopThread();
+	}
+
+	float calcDepthScale(rs2::device dev)
+	{
+		// Go over the device's sensors
+		for (rs2::sensor& sensor : dev.query_sensors())
+		{
+			// Check if the sensor if a depth sensor
+			if (rs2::depth_sensor dpt = sensor.as<rs2::depth_sensor>())
+			{
+				return dpt.get_depth_scale();
+			}
+		}
+		throw std::runtime_error("Device does not have a depth sensor");
 	}
 };

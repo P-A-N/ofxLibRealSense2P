@@ -116,7 +116,7 @@ void ofxLibRealSense2P::update()
 glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
 {
 	glm::vec3 result;
-	if (!_depth) return result;
+	if (!_depth || !(x >= 0 && x < getDepthWidth() && y >= 0 && y < getDepthHeight())) return result;
 	rs2_intrinsics intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 	float distance= _depth.as<rs2::depth_frame>().get_distance(x, y);
 	float _in[2] = { x,y };

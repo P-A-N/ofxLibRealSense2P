@@ -7,7 +7,7 @@ meta:
 vs:
 	# x64
 	ADDON_LIBS += libs\realsense\lib\x64\realsense2.lib
-	ADDON_DLLS_TO_COPY += bin/x64/realsense2.dll
+	ADDON_DLLS_TO_COPY += bin\x64\realsense2.dll
 
 	# Win32
 	#ADDON_LIBS += libs\realsense\lib\x86\realsense2.lib

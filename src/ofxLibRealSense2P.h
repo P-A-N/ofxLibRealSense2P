@@ -4,11 +4,25 @@
 #include <librealsense2/rsutil.h>
 #include "ofMain.h"
 #include "ofxGui.h"
+#include "ofxLibRealsense2PFilter.h"
 
 class ofxLibRealSense2P : public ofThread
 {
 
 public:
+	enum COLOR_SCHEMA
+	{
+		COLOR_SCHEMA_Jet,
+		COLOR_SCHEMA_Classic, 
+		COLOR_SCHEMA_WhiteToBlack, 
+		COLOR_SCHEMA_BlackToWhite, 
+		COLOR_SCHEMA_Bio, 
+		COLOR_SCHEMA_Cold, 
+		COLOR_SCHEMA_Warm, 
+		COLOR_SCHEMA_Quantized, 
+		COLOR_SCHEMA_Pattern
+	};
+
 	ofxLibRealSense2P()
 	{
 	}
@@ -18,7 +32,7 @@ public:
 		waitForThread(false);
 	}
 
-	void setupDevice(int deviceID = 0);
+	void setupDevice(int deviceID = 0, bool listAvailableStream = true);
 	void load(string path);
 
 	void enableColor(int width, int height, int fps = 60);
@@ -135,6 +149,11 @@ public:
 
 	void startStream();
 
+	void setDepthColorSchema(COLOR_SCHEMA schema)
+	{
+		rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, schema);
+	}
+
 private:
 	ofThreadChannel<rs2::frameset> frameChannel;
 	rs2::device		rs2device;
@@ -160,6 +179,8 @@ private:
 	ofPixels         _colBuff, _irBuff, _depthBuff;
 	ofShortPixels    _rawDepthBuff;
 
+	vector<shared_ptr<ofxLibRealsense2P::Filter>> filters;
+
 	float depthScale;
 
 	int deviceId;
@@ -177,6 +198,7 @@ private:
 
 	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
 
+	rs2::disparity_transform* disparity_to_depth;
 
 	void start()
 	{
@@ -201,4 +223,7 @@ private:
 		}
 		throw std::runtime_error("Device does not have a depth sensor");
 	}
+
+	void listSensorProfile();
+	void listStreamingProfile(const rs2::sensor& sensor);
 };

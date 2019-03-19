@@ -1,7 +1,7 @@
 #include "ofxLibRealSense2P.h"
 
 
-void ofxLibRealSense2P::setupDevice(int deviceID)
+void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 {
 	rs2::context ctx;
 	rs2::device_list devList = ctx.query_devices();
@@ -18,8 +18,18 @@ void ofxLibRealSense2P::setupDevice(int deviceID)
 	rs2device = devList[deviceID];
 	device_serial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
 	rs2config.enable_device(device_serial);
-	cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
 	this->deviceId = deviceID;
+	if (listAvailableStream)
+	{
+		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
+		listSensorProfile();
+	}
+	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::DECIMATION));
+	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::THRESHOLD));
+	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::DISPARITY));
+	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::SPATIAL));
+	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::TEMPORAL));
+	disparity_to_depth = new rs2::disparity_transform(false);
 }
 
 void ofxLibRealSense2P::load(string path)
@@ -79,7 +89,7 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, depth_width, depth_height, RS2_FORMAT_Z16, fps);
 	}
-	rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, 2);
+	rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, COLOR_SCHEMA_WhiteToBlack);
 	depth_enabled = true;
 }
 
@@ -110,24 +120,6 @@ void ofxLibRealSense2P::update()
 		}
 	}
 	_isFrameNew.store(false, memory_order_relaxed);
-}
-
-
-glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
-{
-	glm::vec3 result;
-	if (!_depth || !(x >= 0 && x < getDepthWidth() && y >= 0 && y < getDepthHeight())) return result;
-	rs2_intrinsics intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
-	float distance= _depth.as<rs2::depth_frame>().get_distance(x, y);
-	float _in[2] = { x,y };
-	rs2_deproject_pixel_to_point(glm::value_ptr(result), &intr, _in, distance);
-	return result;
-}
-
-float ofxLibRealSense2P::getDistanceAt(int x, int y)
-{
-	if (!_depth) return 0;
-	return _depth.as<rs2::depth_frame>().get_distance(x, y);
 }
 
 void ofxLibRealSense2P::threadedFunction()
@@ -169,6 +161,22 @@ void ofxLibRealSense2P::threadedFunction()
 				//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
 				//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
 				//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
+				bool revert_disparity = false;
+				for (auto f : filters)
+				{
+					if (*(f->getIsEnabled()))
+					{
+						depthFrame = f->getFilter()->process(depthFrame);
+						if (f->getFilterName() == "Disparity")
+						{
+							revert_disparity = true;
+						}
+					}
+				}
+				if (revert_disparity)
+				{
+					depthFrame = disparity_to_depth->process(depthFrame);
+				}
 				rs2depth_queue.enqueue(depthFrame);
 				
 			}
@@ -177,26 +185,56 @@ void ofxLibRealSense2P::threadedFunction()
 	}
 }
 
+
+glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
+{
+	glm::vec3 result;
+	if (!_depth || !(x >= 0 && x < getDepthWidth() && y >= 0 && y < getDepthHeight())) return result;
+	rs2_intrinsics intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+	float distance = _depth.as<rs2::depth_frame>().get_distance(x, y);
+	float _in[2] = { x,y };
+	rs2_deproject_pixel_to_point(glm::value_ptr(result), &intr, _in, distance);
+	return result;
+}
+
+float ofxLibRealSense2P::getDistanceAt(int x, int y)
+{
+	if (!_depth) return 0;
+	return _depth.as<rs2::depth_frame>().get_distance(x, y);
+}
+
 ofxGuiGroup* ofxLibRealSense2P::setupGUI()
 {
 	rs2::sensor sensor = rs2device.query_sensors()[this->deviceId];
 	rs2::option_range orExp = sensor.get_option_range(RS2_OPTION_EXPOSURE);
 	rs2::option_range orGain = sensor.get_option_range(RS2_OPTION_GAIN);
-	rs2::option_range orMinDist = rs2colorizer.get_option_range(RS2_OPTION_MIN_DISTANCE);
-	rs2::option_range orMaxDist = rs2colorizer.get_option_range(RS2_OPTION_MAX_DISTANCE);
+	//rs2::option_range orMinDist = rs2colorizer.get_option_range(RS2_OPTION_MIN_DISTANCE);
+	//rs2::option_range orMaxDist = rs2colorizer.get_option_range(RS2_OPTION_MAX_DISTANCE);
 
 	_D400Params.setup("D400_" + device_serial);
 	_D400Params.add(_autoExposure.setup("Auto exposure", true));
 	_D400Params.add(_enableEmitter.setup("Emitter", true));
 	_D400Params.add(_irExposure.setup("IR Exposure", orExp.def, orExp.min, 26000));
-	_D400Params.add(_depthMin.setup("Min Depth", orMinDist.def, orMinDist.min, orMinDist.max));
-	_D400Params.add(_depthMax.setup("Max Depth", orMaxDist.def, orMaxDist.min, orMaxDist.max));
+	//_D400Params.add(_depthMin.setup("Min Depth", orMinDist.def, orMinDist.min, orMinDist.max));
+	//_D400Params.add(_depthMax.setup("Max Depth", orMaxDist.def, orMaxDist.min, orMaxDist.max));
+
+	for (auto filter : filters)
+	{
+		ofParameterGroup group;
+		group.setName(filter->getFilterName());
+		group.add(*filter->getIsEnabled());
+		for (auto s : filter->getSliders())
+		{
+			group.add(*s);
+		}
+		_D400Params.add(group);
+	}
 
 	_autoExposure.addListener(this, &ofxLibRealSense2P::onD400BoolParamChanged);
 	_enableEmitter.addListener(this, &ofxLibRealSense2P::onD400BoolParamChanged);
 	_irExposure.addListener(this, &ofxLibRealSense2P::onD400IntParamChanged);
-	_depthMin.addListener(this, &ofxLibRealSense2P::onD400ColorizerParamChanged);
-	_depthMax.addListener(this, &ofxLibRealSense2P::onD400ColorizerParamChanged);
+	//_depthMin.addListener(this, &ofxLibRealSense2P::onD400ColorizerParamChanged);
+	//_depthMax.addListener(this, &ofxLibRealSense2P::onD400ColorizerParamChanged);
 
 	return &_D400Params;
 }
@@ -233,4 +271,54 @@ void ofxLibRealSense2P::onD400ColorizerParamChanged(float &value)
 ofxGuiGroup* ofxLibRealSense2P::getGui()
 {
 	return &_D400Params;
+}
+
+void ofxLibRealSense2P::listSensorProfile()
+{
+	vector<rs2::sensor> sensors = rs2device.query_sensors();
+	std::cout << "Device consists of " << sensors.size() << " sensors:\n" << std::endl;
+	int index = 0;
+	for (rs2::sensor sensor : sensors)
+	{
+		if (sensor.supports(RS2_CAMERA_INFO_NAME))
+		{
+			std::cout << "  " << index++ << " : " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+			listStreamingProfile(sensor);
+		}
+		else
+		{
+			std::cout << "  " << index++ << " : Unknown Sensor" << endl;
+			listStreamingProfile(sensor);
+		}
+
+	}
+}
+
+void ofxLibRealSense2P::listStreamingProfile(const rs2::sensor& sensor)
+{
+	std::cout << "  Sensor supports the following profiles:\n" << std::endl;
+	std::vector<rs2::stream_profile> stream_profiles = sensor.get_stream_profiles();
+	int profile_num = 0;
+	for (rs2::stream_profile stream_profile : stream_profiles)
+	{
+		rs2_stream stream_data_type = stream_profile.stream_type();
+		int stream_index = stream_profile.stream_index();
+		std::string stream_name = stream_profile.stream_name();            
+		int unique_stream_id = stream_profile.unique_id(); // The unique identifier can be used for comparing two streams
+		std::cout << std::setw(5) << profile_num << ": " << stream_data_type << " #" << stream_index;
+		if (stream_profile.is<rs2::video_stream_profile>()) //"Is" will test if the type tested is of the type given
+		{
+			// "As" will try to convert the instance to the given type
+			rs2::video_stream_profile video_stream_profile = stream_profile.as<rs2::video_stream_profile>();
+
+			// After using the "as" method we can use the new data type
+			//  for additinal operations:
+			std::cout << " (Video Stream: " << video_stream_profile.format() << " " <<
+				video_stream_profile.width() << "x" << video_stream_profile.height() << "@ " << video_stream_profile.fps() << "Hz)";
+		}
+		std::cout << std::endl;
+		profile_num++;
+	}
+	std::cout << std::endl;
+
 }

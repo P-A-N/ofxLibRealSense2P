@@ -4,7 +4,7 @@
 #include <librealsense2/rsutil.h>
 #include "ofMain.h"
 #include "ofxGui.h"
-#include "ofxLibRealsense2PFilter.h"
+#include "ofxLRS2/Filter.h"
 
 class ofxLibRealSense2P : public ofThread
 {
@@ -38,6 +38,9 @@ public:
 	void enableColor(int width, int height, int fps = 60);
 	void enableIr(int width, int height, int fps = 60);
 	void enableDepth(int width, int height, int fps = 60);
+
+	void startStream();
+
 	void threadedFunction();
 	void update();
 
@@ -147,11 +150,14 @@ public:
 		return depthScale;
 	}
 
-	void startStream();
-
 	void setDepthColorSchema(COLOR_SCHEMA schema)
 	{
 		rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, schema);
+	}
+
+	rs2_intrinsics getCameraIntrinsics()
+	{
+		return intr;
 	}
 
 private:
@@ -167,6 +173,7 @@ private:
 
 
 	rs2::frame _depth;
+	rs2_intrinsics intr;
 
 	//attribute
 	ofxGuiGroup     _D400Params;
@@ -179,7 +186,7 @@ private:
 	ofPixels         _colBuff, _irBuff, _depthBuff;
 	ofShortPixels    _rawDepthBuff;
 
-	vector<shared_ptr<ofxLibRealsense2P::Filter>> filters;
+	vector<shared_ptr<ofxlibrealsense2p::Filter>> filters;
 
 	float depthScale;
 
@@ -224,6 +231,16 @@ private:
 		throw std::runtime_error("Device does not have a depth sensor");
 	}
 
+	void allocateDepthBuffer(float width, float height)
+	{
+		_depthBuff.clear();
+		_depthBuff.allocate(width, height, 3);
+		depth_texture->clear();
+		raw_depth_texture->clear();
+		depth_texture->allocate(width, height, GL_RGB);
+		raw_depth_texture->allocate(width, height, GL_R16);
+		raw_depth_texture->setRGToRGBASwizzles(true);
+	}
 	void listSensorProfile();
 	void listStreamingProfile(const rs2::sensor& sensor);
 };

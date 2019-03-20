@@ -1,15 +1,15 @@
-#include "ofxLibRealsense2PFilter.h"
+#include "ofxLRS2/Filter.h"
 
-ofxLibRealsense2P::Filter::Filter()
+ofxlibrealsense2p::Filter::Filter()
 {
 }
 
 
-ofxLibRealsense2P::Filter::~Filter()
+ofxlibrealsense2p::Filter::~Filter()
 {
 }
 
-ofxLibRealsense2P::Filter::Filter(FILTER_TYPE type)
+ofxlibrealsense2p::Filter::Filter(FILTER_TYPE type)
 {
 	switch (type)
 	{
@@ -61,7 +61,7 @@ ofxLibRealsense2P::Filter::Filter(FILTER_TYPE type)
 	}
 }
 
-void ofxLibRealsense2P::FilterOption::setup(std::shared_ptr<rs2::filter> filter, rs2_option& option, float value, float min, float max, bool isInt)
+void ofxlibrealsense2p::FilterOption::setup(std::shared_ptr<rs2::filter> filter, rs2_option& option, float value, float min, float max, bool isInt)
 {
 	_filter = filter;
 	_option = option;
@@ -79,13 +79,13 @@ void ofxLibRealsense2P::FilterOption::setup(std::shared_ptr<rs2::filter> filter,
 	}
 }
 
-void ofxLibRealsense2P::FilterOption::onD400FilterFloatParamChanged(float &value)
+void ofxlibrealsense2p::FilterOption::onD400FilterFloatParamChanged(float &value)
 {
 	_filter->set_option(_option, value);
 }
 
 
-void ofxLibRealsense2P::FilterOption::onD400FilterIntParamChanged(int &value)
+void ofxlibrealsense2p::FilterOption::onD400FilterIntParamChanged(int &value)
 {
 	_filter->set_option(_option, value);
 }

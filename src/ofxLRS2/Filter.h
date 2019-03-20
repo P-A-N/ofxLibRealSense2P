@@ -2,7 +2,7 @@
 #include <librealsense2/rs.hpp> 
 #include "ofxGui.h"
 
-namespace ofxLibRealsense2P
+namespace ofxlibrealsense2p
 {
 	class FilterOption
 	{

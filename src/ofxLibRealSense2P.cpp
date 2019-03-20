@@ -24,11 +24,11 @@ void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
 		listSensorProfile();
 	}
-	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::DECIMATION));
-	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::THRESHOLD));
-	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::DISPARITY));
-	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::SPATIAL));
-	filters.emplace_back(make_shared<ofxLibRealsense2P::Filter>(ofxLibRealsense2P::Filter::TEMPORAL));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DECIMATION));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::THRESHOLD));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DISPARITY));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::SPATIAL));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::TEMPORAL));
 	disparity_to_depth = new rs2::disparity_transform(false);
 }
 
@@ -82,9 +82,6 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps)
 	depth_height = height;
 	depth_texture = make_shared<ofTexture>();
 	raw_depth_texture = make_shared<ofTexture>();
-	depth_texture->allocate(depth_width, depth_height, GL_RGB);
-	raw_depth_texture->allocate(depth_width, depth_height, GL_R16);
-	raw_depth_texture->setRGToRGBASwizzles(true);
 	if (!bReadFile)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, depth_width, depth_height, RS2_FORMAT_Z16, fps);
@@ -112,7 +109,9 @@ void ofxLibRealSense2P::update()
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(_depth.as<rs2::depth_frame>());
 			if (!_depthBuff.isAllocated() || _depthBuff.getWidth() != normalizedDepthFrame.get_width() || _depthBuff.getHeight() != normalizedDepthFrame.get_height())
 			{
-				_depthBuff.allocate(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height(), 3);
+				//width - height will be changed when Decimate filter applied. reallocate when the size is different
+				allocateDepthBuffer(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height());
+				intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 			}
 			memcpy(_depthBuff.getData(),(uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);
 			raw_depth_texture->loadData(_rawDepthBuff);
@@ -153,11 +152,6 @@ void ofxLibRealSense2P::threadedFunction()
 			}
 			if (depth_enabled) {
 				rs2::depth_frame depthFrame = frame.get_depth_frame();
-				if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
-				{
-					_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
-				}
-				memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
 				//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
 				//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
 				//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
@@ -177,6 +171,14 @@ void ofxLibRealSense2P::threadedFunction()
 				{
 					depthFrame = disparity_to_depth->process(depthFrame);
 				}
+				if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
+				{
+					_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
+				}
+				memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
+				if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
+				if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
+
 				rs2depth_queue.enqueue(depthFrame);
 				
 			}
@@ -190,7 +192,6 @@ glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
 {
 	glm::vec3 result;
 	if (!_depth || !(x >= 0 && x < getDepthWidth() && y >= 0 && y < getDepthHeight())) return result;
-	rs2_intrinsics intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 	float distance = _depth.as<rs2::depth_frame>().get_distance(x, y);
 	float _in[2] = { x,y };
 	rs2_deproject_pixel_to_point(glm::value_ptr(result), &intr, _in, distance);

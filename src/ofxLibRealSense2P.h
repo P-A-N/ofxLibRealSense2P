@@ -107,9 +107,7 @@ public:
 	{
 		if (bAligned)
 		{
-			rs2::frame color;
-			rs2video_queue.poll_for_frame(&color);
-			return color.as<rs2::video_frame>().get_width();
+			return _color.as<rs2::video_frame>().get_width();
 		}
 		return color_width;
 	}
@@ -118,9 +116,7 @@ public:
 	{
 		if (bAligned)
 		{
-			rs2::frame color;
-			rs2video_queue.poll_for_frame(&color);
-			return color.as<rs2::video_frame>().get_height();
+			return _color.as<rs2::video_frame>().get_height();
 		}
 		return color_height;
 	}
@@ -173,6 +169,7 @@ private:
 
 
 	rs2::frame _depth;
+	rs2::frame _color;
 	rs2_intrinsics intr;
 
 	//attribute

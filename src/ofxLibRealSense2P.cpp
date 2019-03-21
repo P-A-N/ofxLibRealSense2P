@@ -97,6 +97,7 @@ void ofxLibRealSense2P::update()
 	{
 		if (_colBuff.isAllocated())
 		{
+			rs2video_queue.poll_for_frame(&_color);
 			color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
 		}
 		if (_irBuff.isAllocated())

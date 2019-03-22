@@ -24,12 +24,7 @@ void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
 		listSensorProfile();
 	}
-	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DECIMATION));
-	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::THRESHOLD));
-	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DISPARITY));
-	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::SPATIAL));
-	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::TEMPORAL));
-	disparity_to_depth = new rs2::disparity_transform(false);
+	setupFilter();
 }
 
 void ofxLibRealSense2P::load(string path)
@@ -37,7 +32,18 @@ void ofxLibRealSense2P::load(string path)
 	ofFile file(path);
 	cout << "load file:" << file.getAbsolutePath() << endl;
 	rs2config.enable_device_from_file(file.getAbsolutePath());
+	setupFilter();
 	bReadFile = true;
+}
+
+void ofxLibRealSense2P::setupFilter()
+{
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DECIMATION));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::THRESHOLD));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::DISPARITY));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::SPATIAL));
+	filters.emplace_back(make_shared<ofxlibrealsense2p::Filter>(ofxlibrealsense2p::Filter::TEMPORAL));
+	disparity_to_depth = new rs2::disparity_transform(false);
 }
 
 void ofxLibRealSense2P::startStream()

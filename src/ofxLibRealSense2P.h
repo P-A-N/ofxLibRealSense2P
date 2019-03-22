@@ -35,6 +35,8 @@ public:
 	void setupDevice(int deviceID = 0, bool listAvailableStream = true);
 	void load(string path);
 
+	void setupFilter();
+
 	void enableColor(int width, int height, int fps = 60);
 	void enableIr(int width, int height, int fps = 60);
 	void enableDepth(int width, int height, int fps = 60);
@@ -56,17 +58,22 @@ public:
 
 	void setAligned(bool aligned)
 	{
-		if (aligned && !this->bAligned)
+		if (depth_enabled && color_enabled)
 		{
-			if (depth_enabled)
+			if (aligned && !this->bAligned)
 			{
+
 				depth_texture->allocate(color_width, color_height, GL_RGB);
 				raw_depth_texture->allocate(color_width, color_height, GL_R16);
 				depth_width = color_width;
 				depth_height = color_height;
 			}
+			this->bAligned = aligned;
 		}
-		this->bAligned = aligned;
+		else
+		{
+			ofLogWarning() << "Align FAILED";
+		}
 	}
 
 	void drawDepthRaw(int x, int y)

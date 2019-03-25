@@ -122,7 +122,7 @@ void ofxLibRealSense2P::update()
 			}
 			memcpy(_depthBuff.getData(),(uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);
 			raw_depth_texture->loadData(_rawDepthBuff);
-			depth_texture->loadData(_depthBuff);
+			depth_texture->loadData(_depthBuff.getData(), _depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB);
 		}
 	}
 	_isFrameNew.store(false, memory_order_relaxed);

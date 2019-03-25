@@ -60,14 +60,6 @@ public:
 	{
 		if (depth_enabled && color_enabled)
 		{
-			if (aligned && !this->bAligned)
-			{
-
-				depth_texture->allocate(color_width, color_height, GL_RGB);
-				raw_depth_texture->allocate(color_width, color_height, GL_R16);
-				depth_width = color_width;
-				depth_height = color_height;
-			}
 			this->bAligned = aligned;
 		}
 		else
@@ -239,10 +231,18 @@ private:
 	{
 		_depthBuff.clear();
 		_depthBuff.allocate(width, height, 3);
-		depth_texture->clear();
-		raw_depth_texture->clear();
-		depth_texture->allocate(width, height, GL_RGB);
-		raw_depth_texture->allocate(width, height, GL_R16);
+		if (!depth_texture->isAllocated() && (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
+		{
+			if(depth_texture->isAllocated())depth_texture->clear();
+			depth_texture->allocate(width, height, GL_RGB, false);
+		}
+		if (!raw_depth_texture->isAllocated() && (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
+		{
+			raw_depth_texture->clear();
+			raw_depth_texture->allocate(width, height, GL_R16);
+		}
+		depth_width = width;
+		depth_height = height;
 		raw_depth_texture->setRGToRGBASwizzles(true);
 	}
 	void listSensorProfile();

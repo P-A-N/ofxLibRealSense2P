@@ -92,12 +92,12 @@ public:
 			ir_tex->draw(x, y);
 	}
 
-	float getDepthWidth()
+	float getDepthWidth() const
 	{
 		return depth_width;
 	}
 
-	float getDepthHeight()
+	float getDepthHeight() const
 	{
 		return depth_height;
 	}
@@ -125,12 +125,12 @@ public:
 		return bFrameNew;
 	}
 
-	shared_ptr<ofTexture> getDepthTexture()
+	shared_ptr<ofTexture> getDepthTexture() const
 	{
 		return depth_texture;
 	}
 
-	shared_ptr<ofTexture> getDepthRawTexture()
+	shared_ptr<ofTexture> getDepthRawTexture() const
 	{
 		return raw_depth_texture;
 	}
@@ -150,7 +150,7 @@ public:
 		rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, schema);
 	}
 
-	rs2_intrinsics getCameraIntrinsics()
+	rs2_intrinsics getCameraIntrinsics() const
 	{
 		return intr;
 	}

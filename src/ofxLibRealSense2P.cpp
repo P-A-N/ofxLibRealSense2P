@@ -88,9 +88,11 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps)
 	depth_height = height;
 	depth_texture = make_shared<ofTexture>();
 	raw_depth_texture = make_shared<ofTexture>();
+	allocateDepthBuffer(width, height);
 	if (!bReadFile)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, depth_width, depth_height, RS2_FORMAT_Z16, fps);
+		intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 	}
 	rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, COLOR_SCHEMA_WhiteToBlack);
 	depth_enabled = true;
@@ -118,6 +120,9 @@ void ofxLibRealSense2P::update()
 			{
 				//width - height will be changed when Decimate filter applied. reallocate when the size is different
 				allocateDepthBuffer(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height());
+			}
+			if (_depth && intr.width != normalizedDepthFrame.get_width() || intr.height != normalizedDepthFrame.get_height())
+			{
 				intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 			}
 			memcpy(_depthBuff.getData(),(uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);

@@ -116,7 +116,7 @@ void ofxLibRealSense2P::update()
 		{
 			rs2depth_queue.poll_for_frame(&_depth);
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(_depth.as<rs2::depth_frame>());
-			if (!_depthBuff.isAllocated() || _depthBuff.getWidth() != normalizedDepthFrame.get_width() || _depthBuff.getHeight() != normalizedDepthFrame.get_height())
+			if (!raw_depth_texture->isAllocated() || raw_depth_texture->getWidth() != normalizedDepthFrame.get_width() || raw_depth_texture->getHeight() != normalizedDepthFrame.get_height())
 			{
 				//width - height will be changed when Decimate filter applied. reallocate when the size is different
 				allocateDepthBuffer(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height());

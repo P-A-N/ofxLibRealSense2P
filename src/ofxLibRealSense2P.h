@@ -102,7 +102,7 @@ public:
 		return depth_height;
 	}
 
-	float getColorWidth()
+	float getColorWidth() const
 	{
 		if (bAligned)
 		{
@@ -111,7 +111,7 @@ public:
 		return color_width;
 	}
 
-	float getColorHeight()
+	float getColorHeight() const
 	{
 		if (bAligned)
 		{
@@ -231,15 +231,15 @@ private:
 	{
 		_depthBuff.clear();
 		_depthBuff.allocate(width, height, 3);
-		if (!depth_texture->isAllocated() && (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
+		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
 		{
 			if(depth_texture->isAllocated())depth_texture->clear();
 			depth_texture->allocate(width, height, GL_RGB, false);
 		}
-		if (!raw_depth_texture->isAllocated() && (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
+		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
 		{
 			raw_depth_texture->clear();
-			raw_depth_texture->allocate(width, height, GL_R16);
+			raw_depth_texture->allocate(width, height, GL_R16,false);
 		}
 		depth_width = width;
 		depth_height = height;

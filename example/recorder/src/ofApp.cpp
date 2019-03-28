@@ -25,7 +25,6 @@ void ofApp::draw(){
 	ofBackground(0);
 	ofPushMatrix();
 	realsense.drawDepth(0,0);
-	realsense.drawColor(realsense.getDepthWidth(), 0);
 	ofPopMatrix();
 	ofDrawBitmapStringHighlight("fps:" + ofToString(ofGetFrameRate(), 2), ofGetWidth() - 160, ofGetHeight() - 20);
 	gui.draw();
@@ -35,6 +34,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	if (key == 's')
 	{
+		realsense.startRecord("record.bag");
 	}
 }
 
@@ -42,7 +42,7 @@ void ofApp::keyPressed(int key){
 void ofApp::keyReleased(int key){
 	if (key == 's')
 	{
-
+		realsense.stopRecord(false);
 	}
 }
 

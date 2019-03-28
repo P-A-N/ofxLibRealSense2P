@@ -41,7 +41,7 @@ public:
 	void enableIr(int width, int height, int fps = 60, bool useArbTex = true);
 	void enableDepth(int width, int height, int fps = 60, bool useArbTex = true);
 	void startRecord(string path);
-	void stopRecord(bool bplayback = true);
+	void stopRecord(bool bplayback = false);
 	void playbackRecorded();
 	bool isRecording();
 

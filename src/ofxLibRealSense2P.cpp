@@ -60,30 +60,31 @@ void ofxLibRealSense2P::startStream()
 	start();
 }
 
-void ofxLibRealSense2P::enableColor(int width, int height, int fps)
+void ofxLibRealSense2P::enableColor(int width, int height, int fps, bool useArbTex)
 {
 	color_width = width;
 	color_height = height;
 	color_texture = make_shared<ofTexture>();
-	color_texture->allocate(color_width, color_height, GL_RGB);
+	color_texture->allocate(color_width, color_height, GL_RGB, useArbTex);
 	if(!bReadFile)
 		rs2config.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, fps);
 	color_enabled = true;
 }
 
-void ofxLibRealSense2P::enableIr(int width, int height, int fps)
+void ofxLibRealSense2P::enableIr(int width, int height, int fps, bool useArbTex)
 {
 	ir_width = width;
 	ir_height = height;
 	ir_tex = make_shared<ofTexture>();
-	ir_tex->allocate(ir_width, ir_height, GL_LUMINANCE);
+	ir_tex->allocate(ir_width, ir_height, GL_LUMINANCE, useArbTex);
 	if (!bReadFile)
 		rs2config.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, fps);
 	ir_enabled = true;
 }
 
-void ofxLibRealSense2P::enableDepth(int width, int height, int fps)
+void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbTex)
 {
+	bUseArbTexDepth = useArbTex;
 	depth_width = width;
 	depth_height = height;
 	depth_texture = make_shared<ofTexture>();

@@ -37,9 +37,9 @@ public:
 
 	void setupFilter();
 
-	void enableColor(int width, int height, int fps = 60);
-	void enableIr(int width, int height, int fps = 60);
-	void enableDepth(int width, int height, int fps = 60);
+	void enableColor(int width, int height, int fps = 60, bool useArbTex = true);
+	void enableIr(int width, int height, int fps = 60, bool useArbTex = true);
+	void enableDepth(int width, int height, int fps = 60, bool useArbTex = true);
 
 	void startStream();
 
@@ -198,6 +198,7 @@ private:
 
 	bool bReadFile = false;
 	bool bAligned = false;
+	bool bUseArbTexDepth = true;
 
 	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
 
@@ -234,12 +235,12 @@ private:
 		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
 		{
 			if(depth_texture->isAllocated())depth_texture->clear();
-			depth_texture->allocate(width, height, GL_RGB, false);
+			depth_texture->allocate(width, height, GL_RGB, bUseArbTexDepth);
 		}
 		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
 		{
 			raw_depth_texture->clear();
-			raw_depth_texture->allocate(width, height, GL_R16,false);
+			raw_depth_texture->allocate(width, height, GL_R16, bUseArbTexDepth);
 		}
 		depth_width = width;
 		depth_height = height;

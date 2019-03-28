@@ -17,3 +17,11 @@ example/simple/obj
 /example/simple/simple.vcxproj.filters
 /example/simple/simple.vcxproj.user
 example/simple/bin/Intel.Realsense.dll
+example/recorder/.vs/
+example/recorder/bin/
+example/recorder/recorder.sln
+example/recorder/recorder.vcxproj.filters
+example/recorder/icon.rc
+example/recorder/recorder.vcxproj.user
+example/recorder/recorder.vcxproj
+example/recorder/obj/

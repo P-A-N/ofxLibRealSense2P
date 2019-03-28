@@ -93,7 +93,7 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbT
 	if (!bReadFile)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, depth_width, depth_height, RS2_FORMAT_Z16, fps);
-		intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+		//intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 	}
 	rs2colorizer.set_option(RS2_OPTION_COLOR_SCHEME, COLOR_SCHEMA_WhiteToBlack);
 	depth_enabled = true;

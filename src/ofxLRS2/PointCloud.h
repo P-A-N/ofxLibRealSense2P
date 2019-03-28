@@ -1,9 +1,8 @@
 #pragma once
 #include "ofMain.h"
-#include "ofxAutoReloadedShader.h"
+//#include "ofxAutoReloadedShader.h"
 #include <librealsense2/rs.hpp> 
 #include <librealsense2/rsutil.h>
-#include "ofxOsc.h"
 
 namespace ofxlibrealsense2p
 {
@@ -18,10 +17,9 @@ namespace ofxlibrealsense2p
 
 	private:
 		ofPlanePrimitive plane;
-		ofxAutoReloadedShader _shader;
+		ofShader _shader;
 		std::shared_ptr<ofTexture> _depth_texture;
 		ofCamera cam;
-		ofxOscReceiver recv;
 	};
 }
 

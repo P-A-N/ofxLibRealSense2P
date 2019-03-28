@@ -15,23 +15,12 @@ void ofxlibrealsense2p::PointCloud::setup(std::shared_ptr<ofTexture> depth_textu
 	_shader.load("shader/shader");
 	plane = ofPlanePrimitive(_depth_texture->getWidth(), _depth_texture->getHeight(),
 		_depth_texture->getWidth(), _depth_texture->getHeight());
-	recv.setup(10000);
-
 }
 
 
 void ofxlibrealsense2p::PointCloud::update()
 {
-	if (recv.hasWaitingMessages())
-	{
-		ofxOscMessage m;
-		recv.getNextMessage(m);
-		if (m.getAddress() == "/camera")
-		{
-			cam.setPosition(m.getArgAsFloat(0), m.getArgAsFloat(1), m.getArgAsFloat(2));
-			cam.lookAt(glm::vec3(m.getArgAsFloat(3), m.getArgAsFloat(4), m.getArgAsFloat(5)));
-		}
-	}
+
 }
 
 void ofxlibrealsense2p::PointCloud::draw(rs2_intrinsics intr)

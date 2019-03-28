@@ -16,3 +16,4 @@ example/simple/obj
 /example/simple/simple.vcxproj
 /example/simple/simple.vcxproj.filters
 /example/simple/simple.vcxproj.user
+example/simple/bin/Intel.Realsense.dll

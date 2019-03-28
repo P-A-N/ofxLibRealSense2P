@@ -40,6 +40,10 @@ public:
 	void enableColor(int width, int height, int fps = 60, bool useArbTex = true);
 	void enableIr(int width, int height, int fps = 60, bool useArbTex = true);
 	void enableDepth(int width, int height, int fps = 60, bool useArbTex = true);
+	void startRecord(string path);
+	void stopRecord(bool bplayback = true);
+	void playbackRecorded();
+	bool isRecording();
 
 	void startStream();
 
@@ -160,7 +164,7 @@ private:
 	rs2::device		rs2device;
 	rs2::config		rs2config; 
 	rs2::colorizer  rs2colorizer;
-	rs2::pipeline	rs2_pipeline;
+	shared_ptr<rs2::pipeline>	rs2_pipeline;
 
 	rs2::frame_queue rs2depth_queue;
 	rs2::frame_queue rs2video_queue;
@@ -182,6 +186,10 @@ private:
 	ofPixels         _colBuff, _irBuff, _depthBuff;
 	ofShortPixels    _rawDepthBuff;
 
+	bool _isRecording;
+
+	int _color_fps, _ir_fps, _depth_fps;
+
 	vector<shared_ptr<ofxlibrealsense2p::Filter>> filters;
 
 	float depthScale;
@@ -195,10 +203,12 @@ private:
 	int color_width, color_height;
 	int ir_width, ir_height;
 	int depth_width, depth_height;
+	int original_depth_width, original_depth_height;
 
 	bool bReadFile = false;
 	bool bAligned = false;
 	bool bUseArbTexDepth = true;
+	string _recordFilePath;
 
 	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
 
@@ -248,4 +258,6 @@ private:
 	}
 	void listSensorProfile();
 	void listStreamingProfile(const rs2::sensor& sensor);
+	void process();
+	bool _useThread = true;
 };

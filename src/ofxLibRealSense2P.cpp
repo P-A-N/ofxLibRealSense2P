@@ -25,6 +25,7 @@ void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 		listSensorProfile();
 	}
 	setupFilter();
+	_isRecording = false;
 }
 
 void ofxLibRealSense2P::load(string path)
@@ -48,11 +49,12 @@ void ofxLibRealSense2P::setupFilter()
 
 void ofxLibRealSense2P::startStream()
 {
-	rs2::pipeline_profile profile = rs2_pipeline.start(rs2config);
+	rs2_pipeline = make_shared<rs2::pipeline>();
+	rs2::pipeline_profile profile = rs2_pipeline->start(rs2config);
 	depthScale = calcDepthScale(profile.get_device());
 	if (bReadFile)
 	{
-		rs2device = rs2_pipeline.get_active_profile().get_device();
+		rs2device = rs2_pipeline->get_active_profile().get_device();
 		string deviceSerial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
 		rs2config.enable_device(deviceSerial);
 		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
@@ -66,6 +68,7 @@ void ofxLibRealSense2P::enableColor(int width, int height, int fps, bool useArbT
 	color_height = height;
 	color_texture = make_shared<ofTexture>();
 	color_texture->allocate(color_width, color_height, GL_RGB, useArbTex);
+	_color_fps = fps;
 	if(!bReadFile)
 		rs2config.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, fps);
 	color_enabled = true;
@@ -75,6 +78,7 @@ void ofxLibRealSense2P::enableIr(int width, int height, int fps, bool useArbTex)
 {
 	ir_width = width;
 	ir_height = height;
+	_ir_fps = fps;
 	ir_tex = make_shared<ofTexture>();
 	ir_tex->allocate(ir_width, ir_height, GL_LUMINANCE, useArbTex);
 	if (!bReadFile)
@@ -85,8 +89,9 @@ void ofxLibRealSense2P::enableIr(int width, int height, int fps, bool useArbTex)
 void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbTex)
 {
 	bUseArbTexDepth = useArbTex;
-	depth_width = width;
-	depth_height = height;
+	original_depth_width = depth_width = width;
+	original_depth_height = depth_height = height;
+	_depth_fps = fps;
 	depth_texture = make_shared<ofTexture>();
 	raw_depth_texture = make_shared<ofTexture>();
 	allocateDepthBuffer(width, height);
@@ -99,8 +104,98 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbT
 	depth_enabled = true;
 }
 
+void ofxLibRealSense2P::startRecord(string path)
+{
+	if (!rs2device.as<rs2::playback>())
+	{
+		if (!rs2device.as<rs2::recorder>())
+		{
+			rs2_pipeline->stop();
+			waitForThread(true);
+			cout << "wait thread stop";
+			while (isThreadRunning())
+			{
+				cout << ".";
+			}
+			cout << endl;
+			rs2_pipeline = make_shared < rs2::pipeline>();
+			rs2::config cfg = rs2config;
+			if(color_enabled)
+				cfg.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, _color_fps);
+			if(ir_enabled)
+				cfg.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, _ir_fps);
+			if(depth_enabled)
+				cfg.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, _depth_fps);
+		
+			//if (file.exists())file.remove();
+			//cout << "write file:" << file.getAbsolutePath() << endl;
+			
+			cfg.enable_record_to_file(path);
+			rs2_pipeline->start(cfg);
+			rs2device = rs2_pipeline->get_active_profile().get_device();
+			_isRecording = true;
+			_recordFilePath = path;// file.getAbsolutePath();
+			startThread();
+		}
+	}
+}
+
+void ofxLibRealSense2P::stopRecord(bool bPlayback)
+{
+	if (rs2device.as<rs2::recorder>())
+	{
+		waitForThread(true);
+		rs2_pipeline->wait_for_frames();
+		rs2_pipeline->stop();
+		cout << "stop record";
+	}
+	if (bPlayback)
+	{
+		cout << "playback " << _recordFilePath << endl;
+		playbackRecorded();
+	}
+	else
+	{
+		rs2_pipeline = make_shared< rs2::pipeline>();
+		rs2::config cfg;
+		if (color_enabled)
+			cfg.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, _color_fps);
+		if (ir_enabled)
+			cfg.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, _ir_fps);
+		if (depth_enabled)
+			cfg.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, _depth_fps);
+		rs2::pipeline_profile profile = rs2_pipeline->start(cfg);
+		rs2device = rs2_pipeline->get_active_profile().get_device();
+		depthScale = calcDepthScale(profile.get_device());
+		_isRecording = false;
+		//startThread();
+	}
+}
+
+void ofxLibRealSense2P::playbackRecorded()
+{
+	if (!rs2device.as<rs2::playback>())
+	{
+		if (isThreadRunning())
+		{
+			rs2_pipeline->stop();
+			waitForThread(true);
+		}
+		rs2::config cfg = rs2config;
+		cfg.enable_device_from_file(_recordFilePath);
+		rs2_pipeline->start(cfg); //File will be opened in read mode at this point
+		rs2device = rs2_pipeline->get_active_profile().get_device();
+	}
+}
+
+bool ofxLibRealSense2P::isRecording()
+{
+	return _isRecording;
+}
+
 void ofxLibRealSense2P::update()
 {
+	if (!_useThread)process();
 	bFrameNew = _isFrameNew.load(memory_order_acquire);
 	if (bFrameNew)
 	{
@@ -136,70 +231,75 @@ void ofxLibRealSense2P::update()
 
 void ofxLibRealSense2P::threadedFunction()
 {
-	rs2::frameset frame, alignedFrame;
-	while (isThreadRunning())
+	while(isThreadRunning() && _useThread)
 	{
-		if (rs2_pipeline.poll_for_frames(&frame)) {
-			if (bAligned)
-			{
-				rs2::align align = rs2::align(RS2_STREAM_COLOR);
-				frame = align.process(frame);
-			}
-			if (color_enabled) {
-				rs2::video_frame colFrame = frame.get_color_frame();
-				if (!_colBuff.isAllocated() || _colBuff.getWidth() != colFrame.get_width() || _colBuff.getHeight() != colFrame.get_height())
-				{
-					_colBuff.allocate(colFrame.get_width(), colFrame.get_height(), 3);
-				}
-				memcpy(_colBuff.getData(), (uint8_t*)colFrame.get_data(), colFrame.get_width() * colFrame.get_height() * sizeof(uint8_t) * 3);
-				rs2video_queue.enqueue(colFrame);
-			}
-			if (ir_enabled) {
-				rs2::video_frame irFrame = frame.get_infrared_frame();
-				if (!_irBuff.isAllocated() || _irBuff.getWidth() != irFrame.get_width() || _irBuff.getHeight() != irFrame.get_height())
-				{
-					_irBuff.allocate(irFrame.get_width(), irFrame.get_height(), 3);
-				}
-				memcpy(_irBuff.getData(), (uint8_t*)irFrame.get_data(), irFrame.get_width() * irFrame.get_height() * sizeof(uint8_t));
-				rs2ir_queue.enqueue(irFrame);
-			}
-			if (depth_enabled) {
-				rs2::depth_frame depthFrame = frame.get_depth_frame();
-				//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
-				//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
-				//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
-				bool revert_disparity = false;
-				for (auto f : filters)
-				{
-					if (*(f->getIsEnabled()))
-					{
-						depthFrame = f->getFilter()->process(depthFrame);
-						if (f->getFilterName() == "Disparity")
-						{
-							revert_disparity = true;
-						}
-					}
-				}
-				if (revert_disparity)
-				{
-					depthFrame = disparity_to_depth->process(depthFrame);
-				}
-				if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
-				{
-					_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
-				}
-				memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
-				if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
-				if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
-
-				rs2depth_queue.enqueue(depthFrame);
-				
-			}
-			_isFrameNew.store(true, memory_order_release);
-		}
+		process();
 	}
+	cout << "thread run end" << endl;
 }
 
+void ofxLibRealSense2P::process()
+{
+	rs2::frameset frame, alignedFrame;
+	if (rs2_pipeline->poll_for_frames(&frame)) {
+		if (bAligned)
+		{
+			rs2::align align = rs2::align(RS2_STREAM_COLOR);
+			frame = align.process(frame);
+		}
+		if (color_enabled) {
+			rs2::video_frame colFrame = frame.get_color_frame();
+			if (!_colBuff.isAllocated() || _colBuff.getWidth() != colFrame.get_width() || _colBuff.getHeight() != colFrame.get_height())
+			{
+				_colBuff.allocate(colFrame.get_width(), colFrame.get_height(), 3);
+			}
+			memcpy(_colBuff.getData(), (uint8_t*)colFrame.get_data(), colFrame.get_width() * colFrame.get_height() * sizeof(uint8_t) * 3);
+			rs2video_queue.enqueue(colFrame);
+		}
+		if (ir_enabled) {
+			rs2::video_frame irFrame = frame.get_infrared_frame();
+			if (!_irBuff.isAllocated() || _irBuff.getWidth() != irFrame.get_width() || _irBuff.getHeight() != irFrame.get_height())
+			{
+				_irBuff.allocate(irFrame.get_width(), irFrame.get_height(), 3);
+			}
+			memcpy(_irBuff.getData(), (uint8_t*)irFrame.get_data(), irFrame.get_width() * irFrame.get_height() * sizeof(uint8_t));
+			rs2ir_queue.enqueue(irFrame);
+		}
+		if (depth_enabled) {
+			rs2::depth_frame depthFrame = frame.get_depth_frame();
+			//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
+			//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
+			//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
+			bool revert_disparity = false;
+			for (auto f : filters)
+			{
+				if (*(f->getIsEnabled()))
+				{
+					depthFrame = f->getFilter()->process(depthFrame);
+					if (f->getFilterName() == "Disparity")
+					{
+						revert_disparity = true;
+					}
+				}
+			}
+			if (revert_disparity)
+			{
+				depthFrame = disparity_to_depth->process(depthFrame);
+			}
+			if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
+			{
+				_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
+			}
+			memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
+			if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
+			if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
+
+			rs2depth_queue.enqueue(depthFrame);
+
+		}
+		_isFrameNew.store(true, memory_order_release);
+	}
+}
 
 glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
 {
@@ -255,7 +355,7 @@ ofxGuiGroup* ofxLibRealSense2P::setupGUI()
 
 void ofxLibRealSense2P::onD400BoolParamChanged(bool &value)
 {
-	rs2::sensor sensor = rs2_pipeline.get_active_profile().get_device().first<rs2::depth_sensor>();
+	rs2::sensor sensor = rs2_pipeline->get_active_profile().get_device().first<rs2::depth_sensor>();
 	if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
 		sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, _autoExposure ? 1.0f : 0.0f);
 	if (sensor.supports(RS2_OPTION_EMITTER_ENABLED))
@@ -265,7 +365,7 @@ void ofxLibRealSense2P::onD400BoolParamChanged(bool &value)
 
 void ofxLibRealSense2P::onD400IntParamChanged(int &value)
 {
-	rs2::sensor sensor = rs2_pipeline.get_active_profile().get_device().first<rs2::depth_sensor>();
+	rs2::sensor sensor = rs2_pipeline->get_active_profile().get_device().first<rs2::depth_sensor>();
 	if (sensor.supports(RS2_OPTION_EXPOSURE))
 		sensor.set_option(RS2_OPTION_EXPOSURE, (float)_irExposure);
 }

@@ -16,7 +16,7 @@ void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 		return;
 	}
 	rs2device = devList[deviceID];
-	device_serial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+	string device_serial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
 	rs2config.enable_device(device_serial);
 	this->deviceId = deviceID;
 	if (listAvailableStream)
@@ -30,9 +30,7 @@ void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 
 void ofxLibRealSense2P::load(string path)
 {
-	ofFile file(path);
-	cout << "load file:" << file.getAbsolutePath() << endl;
-	rs2config.enable_device_from_file(file.getAbsolutePath());
+	readFilePath = path;
 	setupFilter();
 	bReadFile = true;
 }
@@ -50,7 +48,14 @@ void ofxLibRealSense2P::setupFilter()
 void ofxLibRealSense2P::startStream()
 {
 	rs2_pipeline = make_shared<rs2::pipeline>();
-	rs2::pipeline_profile profile = rs2_pipeline->start(rs2config);
+	rs2::config config = rs2config.getConfig();
+	if (bReadFile)
+	{
+		ofFile file(readFilePath);
+		cout << "load file:" << file.getAbsolutePath() << endl;
+		config.enable_device_from_file("data/"+ readFilePath);
+	}
+	rs2::pipeline_profile profile = rs2_pipeline->start(config);
 	depthScale = calcDepthScale(profile.get_device());
 	if (bReadFile)
 	{
@@ -60,6 +65,13 @@ void ofxLibRealSense2P::startStream()
 		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
 	}
 	start();
+}
+
+void ofxLibRealSense2P::stopStream()
+{
+	rs2_pipeline->wait_for_frames();
+	rs2_pipeline->stop();
+	waitForThread(true);
 }
 
 void ofxLibRealSense2P::enableColor(int width, int height, int fps, bool useArbTex)
@@ -106,27 +118,14 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbT
 
 void ofxLibRealSense2P::startRecord(string path)
 {
-	if (!rs2device.as<rs2::playback>())
+	if (!_isRecording)
 	{
 		if (!rs2device.as<rs2::recorder>())
 		{
 			rs2_pipeline->stop();
 			waitForThread(true);
-			cout << "wait thread stop";
-			while (isThreadRunning())
-			{
-				cout << ".";
-			}
-			cout << endl;
 			rs2_pipeline = make_shared< rs2::pipeline>();
-			rs2::config cfg = rs2config;
-			if(color_enabled)
-				cfg.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, _color_fps);
-			if(ir_enabled)
-				cfg.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, _ir_fps);
-			if(depth_enabled)
-				cfg.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, _depth_fps);
-		
+			rs2::config cfg = rs2config.getConfig();
 			ofDirectory::createDirectory("data", false);
 			cfg.enable_record_to_file("data/"+path);
 			rs2_pipeline->start(cfg);
@@ -138,30 +137,15 @@ void ofxLibRealSense2P::startRecord(string path)
 	}
 }
 
-void ofxLibRealSense2P::stopRecord(bool bPlayback)
+void ofxLibRealSense2P::stopRecord()
 {
 	if (rs2device.as<rs2::recorder>())
 	{
-		waitForThread(true);
 		rs2_pipeline->wait_for_frames();
 		rs2_pipeline->stop();
-	}
-	//if (bPlayback)
-	//{
-	//	cout << "playback " << _recordFilePath << endl;
-	//	playbackRecorded();
-	//}
-	//else
-	{
+		waitForThread(true);
 		rs2_pipeline = make_shared< rs2::pipeline>();
-		rs2::config cfg;
-		if (color_enabled)
-			cfg.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, _color_fps);
-		if (ir_enabled)
-			cfg.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, _ir_fps);
-		if (depth_enabled)
-			cfg.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, _depth_fps);
-		rs2::pipeline_profile profile = rs2_pipeline->start(cfg);
+		rs2::pipeline_profile profile = rs2_pipeline->start(rs2config.getConfig());
 		rs2device = rs2_pipeline->get_active_profile().get_device();
 		depthScale = calcDepthScale(profile.get_device());
 		_isRecording = false;
@@ -169,20 +153,29 @@ void ofxLibRealSense2P::stopRecord(bool bPlayback)
 	}
 }
 
-//not working!!!! 
+//Don't call before recording the file-pointer released.
 void ofxLibRealSense2P::playbackRecorded()
 {
-	if (!rs2device.as<rs2::playback>())
+	if (_recordFilePath != "")
 	{
-		if (isThreadRunning())
+		if (!rs2device.as<rs2::playback>())
 		{
-			rs2_pipeline->stop();
-			waitForThread(true);
+			if (isThreadRunning())
+			{
+				rs2_pipeline->stop();
+				waitForThread(true);
+			}
+
+			rs2::config cfg = rs2config.getConfig();
+			cfg.enable_device_from_file("data/" + _recordFilePath);
+			rs2_pipeline->start(cfg); //File will be opened in read mode at this point
+			rs2device = rs2_pipeline->get_active_profile().get_device();
+			startThread();
 		}
-		rs2::config cfg = rs2config;
-		cfg.enable_device_from_file("data/"+_recordFilePath);
-		rs2_pipeline->start(cfg); //File will be opened in read mode at this point
-		rs2device = rs2_pipeline->get_active_profile().get_device();
+	}
+	else
+	{
+		ofLogWarning() << "Playback is only enabled after recoding session";
 	}
 }
 
@@ -323,7 +316,7 @@ ofxGuiGroup* ofxLibRealSense2P::setupGUI()
 	//rs2::option_range orMinDist = rs2colorizer.get_option_range(RS2_OPTION_MIN_DISTANCE);
 	//rs2::option_range orMaxDist = rs2colorizer.get_option_range(RS2_OPTION_MAX_DISTANCE);
 
-	_D400Params.setup("D400_" + device_serial);
+	_D400Params.setup("D400_"+rs2config.getDeviceSerial());
 	_D400Params.add(_autoExposure.setup("Auto exposure", true));
 	_D400Params.add(_enableEmitter.setup("Emitter", true));
 	_D400Params.add(_irExposure.setup("IR Exposure", orExp.def, orExp.min, 26000));

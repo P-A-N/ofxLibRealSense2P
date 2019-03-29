@@ -5,6 +5,7 @@
 #include "ofMain.h"
 #include "ofxGui.h"
 #include "ofxLRS2/Filter.h"
+#include "ofxLRS2/Rs2Config.h"
 
 class ofxLibRealSense2P : public ofThread
 {
@@ -33,19 +34,23 @@ public:
 	}
 
 	void setupDevice(int deviceID = 0, bool listAvailableStream = true);
-	void load(string path);
+	void startStream();
+	void stopStream();
 
+	//depth postprocess filter
 	void setupFilter();
 
+	//Stream setting
 	void enableColor(int width, int height, int fps = 60, bool useArbTex = true);
 	void enableIr(int width, int height, int fps = 60, bool useArbTex = true);
 	void enableDepth(int width, int height, int fps = 60, bool useArbTex = true);
+	
+	//record 
 	void startRecord(string path);
-	void stopRecord(bool bplayback = false);
+	void stopRecord();
 	void playbackRecorded();
 	bool isRecording();
-
-	void startStream();
+	void load(string path);
 
 	void threadedFunction();
 	void update();
@@ -59,7 +64,7 @@ public:
 	void onD400ColorizerParamChanged(float &value);
 	ofxGuiGroup* getGui();
 
-
+	//make frames size aligned
 	void setAligned(bool aligned)
 	{
 		if (depth_enabled && color_enabled)
@@ -113,6 +118,7 @@ public:
 			return _color.as<rs2::video_frame>().get_width();
 		}
 		return color_width;
+		return color_width;
 	}
 
 	float getColorHeight() const
@@ -159,10 +165,15 @@ public:
 		return intr;
 	}
 
+	string getRecordedFilePath()
+	{
+		return _recordFilePath;
+	}
+
 private:
 	ofThreadChannel<rs2::frameset> frameChannel;
 	rs2::device		rs2device;
-	rs2::config		rs2config; 
+	Rs2Config		rs2config; 
 	rs2::colorizer  rs2colorizer;
 	shared_ptr<rs2::pipeline>	rs2_pipeline;
 
@@ -195,7 +206,6 @@ private:
 	float depthScale;
 
 	int deviceId;
-	string device_serial;
 	bool color_enabled = false, ir_enabled = false, depth_enabled = false;
 	atomic_bool _isFrameNew;
 	bool bFrameNew = false;
@@ -208,6 +218,8 @@ private:
 	bool bReadFile = false;
 	bool bAligned = false;
 	bool bUseArbTexDepth = true;
+
+	string readFilePath;
 	string _recordFilePath;
 
 	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;

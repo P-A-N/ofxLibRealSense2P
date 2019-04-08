@@ -14,10 +14,6 @@ void ofApp::setup(){
 //--------------------------------------------------------------
 void ofApp::update(){
 	realsense.update();
-	if (realsense.isFrameNew())
-	{
-		//ofSetWindowShape(realsense.getDepthWidth() + realsense.getColorWidth(), realsense.getDepthHeight());
-	}
 }
 
 //--------------------------------------------------------------
@@ -42,7 +38,7 @@ void ofApp::keyPressed(int key){
 void ofApp::keyReleased(int key){
 	if (key == 's')
 	{
-		realsense.stopRecord(false);
+		realsense.stopRecord();
 	}
 }
 

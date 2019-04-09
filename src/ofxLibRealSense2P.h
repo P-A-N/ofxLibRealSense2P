@@ -115,9 +115,16 @@ public:
 	{
 		if (bAligned)
 		{
-			return _color.as<rs2::video_frame>().get_width();
+			if (_color)
+			{
+				return _color.as<rs2::video_frame>().get_width();
+			}
+			else
+			{
+				ofLogWarning() << "color frame is not updated";
+				return color_width;
+			}
 		}
-		return color_width;
 		return color_width;
 	}
 
@@ -125,7 +132,15 @@ public:
 	{
 		if (bAligned)
 		{
-			return _color.as<rs2::video_frame>().get_height();
+			if (_color)
+			{
+				return _color.as<rs2::video_frame>().get_height();
+			}
+			else
+			{
+				ofLogWarning() << "color frame is not updated";
+				return color_height;
+			}
 		}
 		return color_height;
 	}

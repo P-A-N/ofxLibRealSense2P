@@ -1,6 +1,6 @@
 #pragma once
-#include <librealsense2/rs.hpp> 
-#include "ofxGui.h"
+#include <librealsense2/rs.hpp>
+#include "ofMain.h"
 
 namespace ofxlibrealsense2p
 {

@@ -3,13 +3,12 @@
 #include <librealsense2/rs.hpp> 
 #include <librealsense2/rsutil.h>
 #include "ofMain.h"
-#include "ofxGui.h"
 #include "ofxLRS2/Filter.h"
 #include "ofxLRS2/Rs2Config.h"
 
 class ofxLibRealSense2P : public ofThread
 {
-
+	friend class GuiUtils;
 public:
 	enum COLOR_SCHEMA
 	{
@@ -57,12 +56,6 @@ public:
 
 	float getDistanceAt(int x, int y);
 	glm::vec3 getWorldCoordinateAt(float x, float y);
-
-	ofxGuiGroup* setupGUI();
-	void onD400BoolParamChanged(bool &value);
-	void onD400IntParamChanged(int &value);
-	void onD400ColorizerParamChanged(float &value);
-	ofxGuiGroup* getGui();
 
 	//make frames size aligned
 	void setAligned(bool aligned)
@@ -200,14 +193,6 @@ private:
 	rs2::frame _depth;
 	rs2::frame _color;
 	rs2_intrinsics intr;
-
-	//attribute
-	ofxGuiGroup     _D400Params;
-	ofxToggle       _autoExposure;
-	ofxToggle       _enableEmitter;
-	ofxIntSlider    _irExposure;
-	ofxFloatSlider  _depthMin;
-	ofxFloatSlider  _depthMax;
 
 	ofPixels         _colBuff, _irBuff, _depthBuff;
 	ofShortPixels    _rawDepthBuff;

@@ -4,8 +4,8 @@
 void ofApp::setup(){
 	realsense.setupDevice(0);
 	//setup different resolution
-	realsense.enableDepth(1280, 720);
-	realsense.enableColor(640, 480);
+	realsense.enableDepth(640, 480, 30);
+	realsense.enableColor(424, 240);
 	realsense.startStream();
 
 	//align depth and color pixel size
@@ -21,7 +21,7 @@ void ofApp::update(){
 void ofApp::draw(){
 	//pixel size is aligned even if it setup different resolution!
 	realsense.drawDepth(0, 0);
-	realsense.drawColor(640, 0);
+	realsense.drawColor(424, 0);
 }
 
 //--------------------------------------------------------------

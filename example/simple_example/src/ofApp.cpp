@@ -3,8 +3,8 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
 	realsense.setupDevice();
-	realsense.enableDepth(640, 480);
-	realsense.enableColor(640, 480);
+	realsense.enableDepth(640, 480,30);
+	realsense.enableColor(640, 480,30);
 	realsense.startStream();
 
 	gui.setup(guiUtils.setupGUI(&realsense));

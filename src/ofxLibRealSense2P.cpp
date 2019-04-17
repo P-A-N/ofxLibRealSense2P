@@ -297,6 +297,7 @@ glm::vec3 ofxLibRealSense2P::getWorldCoordinateAt(float x, float y)
 	glm::vec3 result;
 	if (!_depth || !(x >= 0 && x < getDepthWidth() && y >= 0 && y < getDepthHeight())) return result;
 	float distance = _depth.as<rs2::depth_frame>().get_distance(x, y);
+	ofLog() << distance;
 	float _in[2] = { x,y };
 	rs2_deproject_pixel_to_point(glm::value_ptr(result), &intr, _in, distance);
 	return result;

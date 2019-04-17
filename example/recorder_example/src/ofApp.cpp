@@ -21,6 +21,7 @@ void ofApp::draw(){
 	realsense.drawColor(realsense.getDepthWidth(), 0);
 	ofPopMatrix();
 	ofDrawBitmapStringHighlight("fps:" + ofToString(ofGetFrameRate(), 2), ofGetWidth() - 160, ofGetHeight() - 20);
+	ofDrawBitmapString("press 's' to record and saved when the key released", 40, ofGetHeight() - 40);
 }
 
 //--------------------------------------------------------------

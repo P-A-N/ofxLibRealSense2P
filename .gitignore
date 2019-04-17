@@ -55,3 +55,4 @@ example/simple_example/bin/fmodexL64.dll
 example/simple_example/bin/fmodex64.dll
 example/simple_example/bin/FreeImage.dll
 example/simple_example/obj/
+example/recorder_example/bin/data/record.bag

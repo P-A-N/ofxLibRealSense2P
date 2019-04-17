@@ -13,6 +13,7 @@ GuiUtils::~GuiUtils()
 
 ofParameterGroup& GuiUtils::setupGUI(ofxLibRealSense2P* realsense)
 {
+	this->realsense = realsense;
 	rs2::sensor sensor = realsense->rs2device.query_sensors()[realsense->deviceId];
 	rs2::option_range orExp = sensor.get_option_range(RS2_OPTION_EXPOSURE);
 	rs2::option_range orGain = sensor.get_option_range(RS2_OPTION_GAIN);

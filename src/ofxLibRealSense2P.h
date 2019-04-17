@@ -10,6 +10,7 @@ class ofxLibRealSense2P : public ofThread
 {
 	friend class GuiUtils;
 public:
+	//color schema for changing depth representation
 	enum COLOR_SCHEMA
 	{
 		COLOR_SCHEMA_Jet,

@@ -87,3 +87,14 @@ example/example_playback/.vs/playback_example/v15/Browse.VC.db
 example/example_playback/.vs/playback_example/v15/Solution.VC.db-shm
 example/example_playback/.vs/playback_example/v15/Solution.VC.db-wal
 example/example_recorder/bin/data/record.bag
+example/example_depth_colorschema/bin/FreeImage.dll
+example/example_depth_colorschema/.vs/example_depth_colorschema/v15/Solution.VC.db-shm
+example/example_depth_colorschema/.vs/example_depth_colorschema/v15/Solution.VC.db
+example/example_depth_colorschema/.vs/example_depth_colorschema/v15/Browse.VC.db
+example/example_depth_colorschema/bin/fmodexL64.dll
+example/example_depth_colorschema/.vs/example_depth_colorschema/v15/Browse.VC.opendb
+example/example_depth_colorschema/.vs/example_depth_colorschema/v15/Solution.VC.db-wal
+example/example_depth_colorschema/bin/fmodex64.dll
+example/example_depth_colorschema/obj/x64/Debug/icon.res
+example/example_depth_colorschema/bin/data/.gitkeep
+example/example_depth_colorschema/obj/Win32/Debug/icon.res

@@ -17,6 +17,16 @@ void ofApp::update(){
 void ofApp::draw(){
 	realsense.drawColor(0,0);
 	realsense.drawDepth(realsense.getColorWidth(), 0);
+
+	float x = ofMap(realsense.getPosition(), 0.0, 1.0, 0.0, ofGetWidth());
+	ofPushStyle();
+	ofSetColor(255, 0, 0);
+	ofDrawLine(x, 0, x, ofGetHeight());
+	ofPopStyle();
+
+	ofDrawBitmapStringHighlight("duration nano sec : " + std::to_string(realsense.getDurationAs<ofxLibRealSense2P::nano_sec>()), 10, 10);
+	ofDrawBitmapStringHighlight("duration mill sec : " + std::to_string(realsense.getDurationAs<ofxLibRealSense2P::mill_sec>()), 10, 30);
+	ofDrawBitmapStringHighlight("duration sec : " + std::to_string(realsense.getDurationAs<ofxLibRealSense2P::sec>()), 10, 50);
 }
 
 //--------------------------------------------------------------

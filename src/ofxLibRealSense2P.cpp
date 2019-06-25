@@ -184,6 +184,51 @@ bool ofxLibRealSense2P::isRecording()
 	return _isRecording;
 }
 
+bool ofxLibRealSense2P::isPlayback() const {
+	if (rs2device.as<rs2::playback>())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void ofxLibRealSense2P::setPosition(double position)
+{
+	if (this->isPlayback())
+	{
+		rs2::playback playback = rs2device.as<rs2::playback>();
+		auto duration_db = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(playback.get_duration());
+		auto single_percent = duration_db.count();
+		auto seek_time = std::chrono::duration<double, std::nano>(position * single_percent);
+		playback.seek(std::chrono::duration_cast<std::chrono::nanoseconds>(seek_time));
+	}
+	else
+	{
+		ofLogWarning() << "setPosition() : it can be used in playbacking bag only.";
+	}
+}
+
+double ofxLibRealSense2P::getPosition() const
+{
+	if (this->isPlayback())
+	{
+		rs2::playback playback = rs2device.as<rs2::playback>();
+		int64_t playback_total_duration = playback.get_duration().count();
+		uint64_t progress = playback.get_position();
+		double position = (1.0 * progress) / playback_total_duration;
+		return position;
+	}
+	else
+	{
+		ofLogWarning() << "getPosition() : it can be used in playbacking bag only.";
+		return 0.0;
+	}
+}
+
+
 void ofxLibRealSense2P::update()
 {
 	if (!_useThread)process();

@@ -10,6 +10,10 @@ class ofxLibRealSense2P : public ofThread
 {
 	friend class GuiUtils;
 public:
+	using nano_sec = ratio<1, 1000000000>;
+	using mill_sec = ratio<1, 1000>;
+	using sec = ratio<1, 1>;
+
 	//color schema for changing depth representation
 	enum COLOR_SCHEMA
 	{
@@ -51,6 +55,24 @@ public:
 	void playbackRecorded();
 	bool isRecording();
 	void load(string path);
+	bool isPlayback() const;
+	void setPosition(double position);
+	double getPosition() const;
+	template<typename type>
+	double getDurationAs() const
+	{
+		if (this->isPlayback())
+		{
+			rs2::playback playback = rs2device.as<rs2::playback>();
+			auto duration = std::chrono::duration_cast<std::chrono::duration<double, type>>(playback.get_duration());
+			return std::chrono::duration_cast<std::chrono::duration<double, type>>(duration).count();
+		}
+		else
+		{
+			ofLogWarning() << "getDurationAs() : it can be used in playbacking bag only.";
+		}
+	}
+
 
 	void threadedFunction();
 	void update();

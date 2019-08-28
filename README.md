@@ -5,7 +5,7 @@ libRealSense2 addon for openFrameworks.
 - getWorldCoordinate from pixel coordinate.
 - record frames to bag file.
 - play back function.
-- pixel align feature.
+- depth / color / IR pixel alignment.
 
 #### - supported OS
 - Windows 10

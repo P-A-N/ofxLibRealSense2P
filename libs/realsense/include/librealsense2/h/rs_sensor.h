@@ -30,11 +30,13 @@ typedef enum rs2_camera_info {
     RS2_CAMERA_INFO_PRODUCT_ID                     , /**< Product ID as reported in the USB descriptor */
     RS2_CAMERA_INFO_CAMERA_LOCKED                  , /**< True iff EEPROM is locked */
     RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR            , /**< Designated USB specification: USB2/USB3 */
+    RS2_CAMERA_INFO_PRODUCT_LINE                   , /**< Device product line D400/SR300/L500/T200 */
+    RS2_CAMERA_INFO_ASIC_SERIAL_NUMBER             , /**< ASIC serial number */
     RS2_CAMERA_INFO_COUNT                            /**< Number of enumeration values. Not a valid input: intended to be used in for-loops. */
 } rs2_camera_info;
 const char* rs2_camera_info_to_string(rs2_camera_info info);
 
-/** \brief Streams are different types of data provided by RealSense devices */
+/** \brief Streams are different types of data provided by RealSense devices. */
 typedef enum rs2_stream
 {
     RS2_STREAM_ANY,
@@ -46,12 +48,12 @@ typedef enum rs2_stream
     RS2_STREAM_ACCEL                            , /**< Native stream of accelerometer motion data produced by RealSense device */
     RS2_STREAM_GPIO                             , /**< Signals from external device connected through GPIO */
     RS2_STREAM_POSE                             , /**< 6 Degrees of Freedom pose data, calculated by RealSense device */
-    RS2_STREAM_CONFIDENCE,
+    RS2_STREAM_CONFIDENCE                       , /**< 4 bit per-pixel depth confidence level */
     RS2_STREAM_COUNT
 } rs2_stream;
 const char* rs2_stream_to_string(rs2_stream stream);
 
-/** \brief Format identifies how binary data is encoded within a frame */
+/** \brief A stream's format identifies how binary data is encoded within a frame. */
 typedef enum rs2_format
 {
     RS2_FORMAT_ANY             , /**< When passed to enable stream, librealsense will try to provide best suited format */
@@ -65,7 +67,7 @@ typedef enum rs2_format
     RS2_FORMAT_BGRA8           , /**< 8-bit blue, green, and red channels + constant alpha channel equal to FF */
     RS2_FORMAT_Y8              , /**< 8-bit per-pixel grayscale image */
     RS2_FORMAT_Y16             , /**< 16-bit per-pixel grayscale image */
-    RS2_FORMAT_RAW10           , /**< Four 10-bit luminance values encoded into a 5-byte macropixel */
+    RS2_FORMAT_RAW10           , /**< Four 10 bits per pixel luminance values packed into a 5-byte macropixel */
     RS2_FORMAT_RAW16           , /**< 16-bit raw image */
     RS2_FORMAT_RAW8            , /**< 8-bit raw image */
     RS2_FORMAT_UYVY            , /**< Similar to the standard YUYV pixel format, but packed in a different order */
@@ -74,11 +76,14 @@ typedef enum rs2_format
     RS2_FORMAT_GPIO_RAW        , /**< Raw data from the external sensors hooked to one of the GPIO's */
     RS2_FORMAT_6DOF            , /**< Pose data packed as floats array, containing translation vector, rotation quaternion and prediction velocities and accelerations vectors */
     RS2_FORMAT_DISPARITY32     , /**< 32-bit float-point disparity values. Depth->Disparity conversion : Disparity = Baseline*FocalLength/Depth */
+    RS2_FORMAT_Y10BPACK        , /**< 16-bit per-pixel grayscale image unpacked from 10 bits per pixel packed ([8:8:8:8:2222]) grey-scale image. The data is unpacked to LSB and padded with 6 zero bits */
+    RS2_FORMAT_DISTANCE        , /**< 32-bit float-point depth distance value.  */
+    RS2_FORMAT_MJPEG           , /**< Bitstream encoding for video in which an image of each frame is encoded as JPEG-DIB   */
     RS2_FORMAT_COUNT             /**< Number of enumeration values. Not a valid input: intended to be used in for-loops. */
 } rs2_format;
 const char* rs2_format_to_string(rs2_format format);
 
-/** \brief Cross-stream extrinsics: encode the topology describing how the different devices are connected. */
+/** \brief Cross-stream extrinsics: encodes the topology describing how the different devices are oriented. */
 typedef struct rs2_extrinsics
 {
     float rotation[9];    /**< Column-major 3x3 rotation matrix */
@@ -353,6 +358,21 @@ void rs2_set_stream_profile_data(rs2_stream_profile* mode, rs2_stream stream, in
 rs2_stream_profile* rs2_clone_stream_profile(const rs2_stream_profile* mode, rs2_stream stream, int index, rs2_format format, rs2_error** error);
 
 /**
+* Creates a copy of stream profile, assigning new values to some of the fields
+* \param[in] mode        input stream profile
+* \param[in] stream      stream type for the profile
+* \param[in] format      binary data format of the profile
+* \param[in] width       new width for the profile
+* \param[in] height      new height for the profile
+* \param[in] intr        new intrinsics for the profile
+* \param[in] index       stream index the profile in case there are multiple streams of the same type
+* \param[out] error      if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                new stream profile, must be deleted by rs2_delete_stream_profile
+*/
+rs2_stream_profile* rs2_clone_video_stream_profile(const rs2_stream_profile* mode, rs2_stream stream, int index, rs2_format format, int width, int height, const rs2_intrinsics* intr, rs2_error** error);
+
+
+/**
 * Delete stream profile allocated by rs2_clone_stream_profile
 * Should not be called on stream profiles returned by the device
 * \param[in] mode        input stream profile
@@ -519,11 +539,41 @@ int rs2_load_wheel_odometry_config(const rs2_sensor* sensor, const unsigned char
 /** Send wheel odometry data for each individual sensor (wheel)
 * \param[in] wo_sensor_id       - Zero-based index of (wheel) sensor with the same type within device
 * \param[in] frame_num          - Monotonocally increasing frame number, managed per sensor.
-* \param[in] angular_velocity   - Angular velocity of the wheel sensor [rad/sec]
+* \param[in] translational_velocity   - Translational velocity of the wheel sensor [meter/sec]
 * \return true on success
 */
 int rs2_send_wheel_odometry(const rs2_sensor* sensor, char wo_sensor_id, unsigned int frame_num,
-    const rs2_vector angular_velocity, rs2_error** error);
+    const rs2_vector translational_velocity, rs2_error** error);
+
+/**
+* Set intrinsics of a given sensor
+* \param[in] sensor       The RealSense device
+* \param[in] profile      Target stream profile
+* \param[in] intrinsics   Intrinsics value to be written to the device
+* \param[out] error       If non-null, receives any error that occurs during this call, otherwise, errors are ignored
+*/
+void rs2_set_intrinsics(const rs2_sensor* sensor, const rs2_stream_profile* profile , const rs2_intrinsics* intrinsics, rs2_error** error);
+
+/**
+ * Set extrinsics between two sensors
+ * \param[in]  from_sensor  Origin sensor
+ * \param[in]  from_profile Origin profile
+ * \param[in]  to_sensor    Target sensor
+ * \param[in]  to_profile   Target profile
+ * \param[out] extrinsics   Extrinsics from origin to target
+ * \param[out] error        If non-null, receives any error that occurs during this call, otherwise, errors are ignored
+ */
+void rs2_set_extrinsics(const rs2_sensor* from_sensor, const rs2_stream_profile* from_profile, rs2_sensor* to_sensor, const rs2_stream_profile* to_profile, const rs2_extrinsics* extrinsics, rs2_error** error);
+
+/**
+* Set motion device intrinsics
+* \param[in]  sensor       Motion sensor 
+* \param[in]  profile      Motion stream profile
+* \param[out] intrinsics   Pointer to the struct to store the data in
+* \param[out] error        If non-null, receives any error that occurs during this call, otherwise, errors are ignored
+*/
+void rs2_set_motion_device_intrinsics(const rs2_sensor* sensor, const rs2_stream_profile* profile, const rs2_motion_device_intrinsic* intrinsics, rs2_error** error);
+
 
 #ifdef __cplusplus
 }

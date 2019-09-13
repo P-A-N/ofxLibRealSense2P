@@ -3,29 +3,38 @@
 
 void ofxLibRealSense2P::setupDevice(int deviceID, bool listAvailableStream)
 {
-	rs2::context ctx;
-	rs2::device_list devList = ctx.query_devices();
-	if (devList.size() <= 0)
+	try
 	{
-		ofSystemAlertDialog("RealSense device not found!");
-		return;
-	}
+		rs2::context ctx;
+		rs2::device_list devList = ctx.query_devices();
+		ofSleepMillis(1000); // T265 specific bug https://github.com/IntelRealSense/librealsense/issues/3488
+		devList = ctx.query_devices();
+		if (devList.size() <= 0)
+		{
+			ofSystemAlertDialog("RealSense device not found!");
+			return;
+		}
 
-	if (deviceID >= devList.size()) {
-		ofSystemAlertDialog("Requested device id is invalid");
-		return;
+		if (deviceID >= devList.size()) {
+			ofSystemAlertDialog("Requested device id is invalid");
+			return;
+		}
+		rs2device = devList[deviceID];
+		string device_serial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+		rs2config.enable_device(device_serial);
+		this->deviceId = deviceID;
+		if (listAvailableStream)
+		{
+			cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
+			listSensorProfile();
+		}
+		setupFilter();
+		_isRecording = false;
 	}
-	rs2device = devList[deviceID];
-	string device_serial = rs2device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-	rs2config.enable_device(device_serial);
-	this->deviceId = deviceID;
-	if (listAvailableStream)
+	catch (const std::exception &exc)
 	{
-		cout << "Device name is: " << rs2device.get_info(RS2_CAMERA_INFO_NAME) << endl;
-		listSensorProfile();
+		ofLogError() << exc.what();
 	}
-	setupFilter();
-	_isRecording = false;
 }
 
 void ofxLibRealSense2P::load(string path)
@@ -47,7 +56,15 @@ void ofxLibRealSense2P::setupFilter()
 
 void ofxLibRealSense2P::startStream()
 {
-	rs2_pipeline = make_shared<rs2::pipeline>();
+	try
+	{
+		rs2_pipeline = make_shared<rs2::pipeline>();
+	}
+	catch (const std::exception &exc)
+	{
+		ofLogError() << exc.what();
+		ofExit();
+	}
 	rs2::config config = rs2config.getConfig();
 	if (bReadFile)
 	{

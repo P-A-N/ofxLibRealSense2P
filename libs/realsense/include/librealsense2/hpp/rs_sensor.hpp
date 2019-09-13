@@ -215,8 +215,8 @@ namespace rs2
 
 
         /**
-        * check if physical sensor is supported
-        * \return   list of stream profiles that given sensor can provide, should be released by rs2_delete_profiles_list
+        * Retrieves the list of stream profiles supported by the sensor.
+        * \return   list of stream profiles that given sensor can provide
         */
         std::vector<stream_profile> get_stream_profiles() const
         {
@@ -328,6 +328,12 @@ namespace rs2
 
 
     };
+
+    inline std::shared_ptr<sensor> sensor_from_frame(frame f)
+    {
+        std::shared_ptr<rs2_sensor> psens(f.get_sensor(), rs2_delete_sensor);
+        return std::make_shared<sensor>(psens);
+    }
 
     inline bool operator==(const sensor& lhs, const sensor& rhs)
     {
@@ -542,13 +548,13 @@ namespace rs2
         /** Send wheel odometry data for each individual sensor (wheel)
         * \param[in] wo_sensor_id       - Zero-based index of (wheel) sensor with the same type within device
         * \param[in] frame_num          - Monotonocally increasing frame number, managed per sensor.
-        * \param[in] angular_velocity   - Angular velocity in rad/sec
+        * \param[in] translational_velocity   - Translational velocity in meter/sec
         * \return true on success
         */
-        bool send_wheel_odometry(uint8_t wo_sensor_id, uint32_t frame_num, const rs2_vector& angular_velocity)
+        bool send_wheel_odometry(uint8_t wo_sensor_id, uint32_t frame_num, const rs2_vector& translational_velocity)
         {
             rs2_error* e = nullptr;
-            auto res = rs2_send_wheel_odometry(_sensor.get(), wo_sensor_id, frame_num, angular_velocity, &e);
+            auto res = rs2_send_wheel_odometry(_sensor.get(), wo_sensor_id, frame_num, translational_velocity, &e);
             error::handle(e);
             return !!res;
         }

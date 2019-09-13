@@ -17,7 +17,7 @@ extern "C" {
 #include "rs_types.h"
 
     /** \brief Defines general configuration controls.
-    These can generally be mapped to camera UVC controls, and unless stated otherwise, can be set/queried at any time.
+    These can generally be mapped to camera UVC controls, and can be set / queried at any time unless stated otherwise.
     */
     typedef enum rs2_option
     {
@@ -73,6 +73,14 @@ extern "C" {
         RS2_OPTION_LLD_TEMPERATURE, /**< LLD temperature*/
         RS2_OPTION_MC_TEMPERATURE, /**< MC temperature*/
         RS2_OPTION_MA_TEMPERATURE, /**< MA temperature*/
+        RS2_OPTION_HARDWARE_PRESET, /**< Hardware stream configuration */
+        RS2_OPTION_GLOBAL_TIME_ENABLED, /**< disable global time  */
+        RS2_OPTION_APD_TEMPERATURE, /**< APD temperature*/
+        RS2_OPTION_ENABLE_MAPPING, /**< Enable an internal map */
+        RS2_OPTION_ENABLE_RELOCALIZATION, /**< Enable appearance based relocalization */
+        RS2_OPTION_ENABLE_POSE_JUMPING, /**< Enable position jumping */
+        RS2_OPTION_ENABLE_DYNAMIC_CALIBRATION, /**< Enable dynamic calibration */
+        RS2_OPTION_DEPTH_OFFSET, /**< Offset from sensor to depth origin in millimetrers*/
         RS2_OPTION_COUNT /**< Number of enumeration values. Not a valid input: intended to be used in for-loops. */
     } rs2_option;
 

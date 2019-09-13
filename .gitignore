@@ -98,3 +98,7 @@ example/example_depth_colorschema/bin/fmodex64.dll
 example/example_depth_colorschema/obj/x64/Debug/icon.res
 example/example_depth_colorschema/bin/data/.gitkeep
 example/example_depth_colorschema/obj/Win32/Debug/icon.res
+example/example_T265/.vs/
+example/example_T265/bin/fmodexL64.dll
+example/example_T265/bin/fmodex64.dll
+example/example_T265/bin/FreeImage.dll

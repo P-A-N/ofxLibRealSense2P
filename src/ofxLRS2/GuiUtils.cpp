@@ -21,9 +21,12 @@ ofParameterGroup& GuiUtils::setupGUI(ofxLibRealSense2P* realsense)
 	rs2::option_range orMaxDist = realsense->rs2colorizer.get_option_range(RS2_OPTION_MAX_DISTANCE);
 
 	_D400Params.setName("D400_" + realsense->rs2config.getDeviceSerial());
-	_D400Params.add(_autoExposure.set("Auto exposure", (bool)sensor.get_option(RS2_OPTION_EXPOSURE)));
-	_D400Params.add(_enableEmitter.set("Emitter", (bool)sensor.get_option(RS2_OPTION_EMITTER_ENABLED)));
-	_D400Params.add(_irExposure.set("IR Exposure", orExp.def, orExp.min, 26000));
+	if (!realsense->bReadFile)
+	{
+		_D400Params.add(_autoExposure.set("Auto exposure", (bool)sensor.get_option(RS2_OPTION_EXPOSURE)));
+		_D400Params.add(_enableEmitter.set("Emitter", (bool)sensor.get_option(RS2_OPTION_EMITTER_ENABLED)));
+		_D400Params.add(_irExposure.set("IR Exposure", orExp.def, orExp.min, 26000));
+	}
 	_D400Params.add(_depthMin.set("Min Depth", orMinDist.def, orMinDist.min, orMinDist.max));
 	_D400Params.add(_depthMax.set("Max Depth", orMaxDist.def, orMaxDist.min, orMaxDist.max));
 
@@ -38,10 +41,12 @@ ofParameterGroup& GuiUtils::setupGUI(ofxLibRealSense2P* realsense)
 		}
 		_D400Params.add(group);
 	}
-
-	_autoExposure.addListener(this, &GuiUtils::onD400BoolParamChanged);
-	_enableEmitter.addListener(this, &GuiUtils::onD400BoolParamChanged);
-	_irExposure.addListener(this, &GuiUtils::onD400IntParamChanged);
+	if (!realsense->bReadFile)
+	{
+		_autoExposure.addListener(this, &GuiUtils::onD400BoolParamChanged);
+		_enableEmitter.addListener(this, &GuiUtils::onD400BoolParamChanged);
+		_irExposure.addListener(this, &GuiUtils::onD400IntParamChanged);
+	}
 	_depthMin.addListener(this, &GuiUtils::onD400ColorizerParamChanged);
 	_depthMax.addListener(this, &GuiUtils::onD400ColorizerParamChanged);
 

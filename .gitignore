@@ -98,3 +98,11 @@ example/example_depth_colorschema/bin/fmodex64.dll
 example/example_depth_colorschema/obj/x64/Debug/icon.res
 example/example_depth_colorschema/bin/data/.gitkeep
 example/example_depth_colorschema/obj/Win32/Debug/icon.res
+*.db
+*.opendb
+*.db-shm
+*.db-wal
+example/example_simple/bin/example_simple.iobj
+example/example_simple/bin/example_simple.ipdb
+example/example_playback/obj/x64/Release/icon.res
+example/example_simple/obj/x64/Release/icon.res

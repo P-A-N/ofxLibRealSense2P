@@ -131,13 +131,13 @@ public:
 	{
 		if (bAligned)
 		{
-			if (_color)
+			//if (_color)
+			//{
+			//	return _color.as<rs2::video_frame>().get_width();
+			//}
+			//else
 			{
-				return _color.as<rs2::video_frame>().get_width();
-			}
-			else
-			{
-				ofLogWarning() << "color frame is not updated";
+				//ofLogWarning() << "color frame is not updated";
 				return color_width;
 			}
 		}
@@ -148,13 +148,13 @@ public:
 	{
 		if (bAligned)
 		{
-			if (_color)
+			//if (_color)
+			//{
+			//	return _color.as<rs2::video_frame>().get_height();
+			//}
+			//else
 			{
-				return _color.as<rs2::video_frame>().get_height();
-			}
-			else
-			{
-				ofLogWarning() << "color frame is not updated";
+				//ofLogWarning() << "color frame is not updated";
 				return color_height;
 			}
 		}
@@ -209,16 +209,18 @@ private:
 	shared_ptr<rs2::pipeline>	rs2_pipeline;
 
 	rs2::frame_queue rs2depth_queue;
-	rs2::frame_queue rs2video_queue;
-	rs2::frame_queue rs2ir_queue;
+	//rs2::frame_queue rs2video_queue;
+	//rs2::frame_queue rs2ir_queue;
 
 
 	rs2::frame _depth;
-	rs2::frame _color;
+	//rs2::frame _color;
 	rs2_intrinsics intr;
 
-	ofPixels         _colBuff, _irBuff, _depthBuff;
-	ofShortPixels    _rawDepthBuff;
+	ofThreadChannel<ofPixels>         _color_channel, _ir_channel, _depth_channel;
+	ofPixels _colBuff, _irBuff, _depthBuff;
+	ofThreadChannel<ofShortPixels>    _raw_depth_channel;
+	ofShortPixels _rawDepthBuff;
 
 	bool _isRecording;
 
@@ -275,21 +277,7 @@ private:
 
 	void allocateDepthBuffer(float width, float height)
 	{
-		_depthBuff.clear();
-		_depthBuff.allocate(width, height, 3);
-		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
-		{
-			if(depth_texture->isAllocated())depth_texture->clear();
-			depth_texture->allocate(width, height, GL_RGB, bUseArbTexDepth);
-		}
-		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
-		{
-			raw_depth_texture->clear();
-			raw_depth_texture->allocate(width, height, GL_R16, bUseArbTexDepth);
-		}
-		depth_width = width;
-		depth_height = height;
-		raw_depth_texture->setRGToRGBASwizzles(true);
+
 	}
 	void listSensorProfile();
 	void listStreamingProfile(const rs2::sensor& sensor);

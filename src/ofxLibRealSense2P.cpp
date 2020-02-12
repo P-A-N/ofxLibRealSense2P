@@ -232,39 +232,39 @@ double ofxLibRealSense2P::getPosition() const
 void ofxLibRealSense2P::update()
 {
 	if (!_useThread)process();
+	if (_color_channel.tryReceive(_colBuff))
+	{
+		//rs2video_queue.poll_for_frame(&_color);
+		color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
+	}
+	if (_ir_channel.tryReceive(_irBuff))
+	{
+		ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
+	}
+	if (_raw_depth_channel.tryReceive(_rawDepthBuff))
+	{
+		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight()))
+		{
+			raw_depth_texture->clear();
+			raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
+		}
+		raw_depth_texture->setRGToRGBASwizzles(true);
+		raw_depth_texture->loadData(_rawDepthBuff);
+	}
+	if (_depth_channel.tryReceive(_depthBuff))
+	{
+		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != _depthBuff.getWidth() || depth_texture->getHeight() != _depthBuff.getHeight()))
+		{
+			if (depth_texture->isAllocated())depth_texture->clear();
+			depth_texture->allocate(_depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB, bUseArbTexDepth);
+		}
+		depth_width = _depthBuff.getWidth();
+		depth_height = _depthBuff.getHeight();
+		depth_texture->loadData(_depthBuff);
+	}
 	bFrameNew = _isFrameNew.load(memory_order_acquire);
 	if (bFrameNew)
 	{
-		if (_color_channel.tryReceive(_colBuff))
-		{
-			//rs2video_queue.poll_for_frame(&_color);
-			color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
-		}
-		if (_ir_channel.tryReceive(_irBuff))
-		{
-			ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
-		}
-		if (_raw_depth_channel.tryReceive(_rawDepthBuff))
-		{
-			if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight()))
-			{
-				raw_depth_texture->clear();
-				raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
-			}
-			raw_depth_texture->setRGToRGBASwizzles(true);
-			raw_depth_texture->loadData(_rawDepthBuff);
-		}
-		if (_depth_channel.tryReceive(_depthBuff))
-		{
-			if (!depth_texture->isAllocated() || (depth_texture->getWidth() != _depthBuff.getWidth() || depth_texture->getHeight() != _depthBuff.getHeight()))
-			{
-				if (depth_texture->isAllocated())depth_texture->clear();
-				depth_texture->allocate(_depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB, bUseArbTexDepth);
-			}
-			depth_width = _depthBuff.getWidth();
-			depth_height = _depthBuff.getHeight();
-			depth_texture->loadData(_depthBuff);
-		}
 		if (rs2depth_queue.poll_for_frame(&_depth))
 		{
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(_depth.as<rs2::depth_frame>());

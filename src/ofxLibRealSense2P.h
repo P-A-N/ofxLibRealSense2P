@@ -38,7 +38,7 @@ public:
 	}
 
 	void setupDevice(int deviceID = 0, bool listAvailableStream = true);
-	void startStream();
+	void startStream(bool threaded = true);
 	void stopStream();
 
 	//depth postprocess filter
@@ -202,7 +202,6 @@ public:
 	}
 
 private:
-	ofThreadChannel<rs2::frameset> frameChannel;
 	rs2::device		rs2device;
 	Rs2Config		rs2config; 
 	rs2::colorizer  rs2colorizer;
@@ -212,42 +211,35 @@ private:
 	rs2::frame_queue rs2video_queue;
 	rs2::frame_queue rs2ir_queue;
 
-
 	rs2::frame _depth;
 	rs2::frame _color;
+	rs2::frame _ir;
 	rs2_intrinsics intr;
 
-	ofPixels         _colBuff, _irBuff, _depthBuff;
-	ofShortPixels    _rawDepthBuff;
-
 	bool _isRecording;
-
 	int _color_fps, _ir_fps, _depth_fps;
-
 	vector<shared_ptr<ofxlibrealsense2p::Filter>> filters;
-
 	float depthScale;
-
 	int deviceId;
 	bool color_enabled = false, ir_enabled = false, depth_enabled = false;
 	atomic_bool _isFrameNew;
 	bool bFrameNew = false;
-
 	int color_width, color_height;
 	int ir_width, ir_height;
 	int depth_width, depth_height;
 	int original_depth_width, original_depth_height;
-
 	bool bReadFile = false;
 	bool bAligned = false;
 	bool bUseArbTexDepth = true;
-
 	string readFilePath;
 	string _recordFilePath;
-
 	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
-
 	rs2::disparity_transform* disparity_to_depth;
+	void listSensorProfile();
+	void listStreamingProfile(const rs2::sensor& sensor);
+	void process();
+	bool _useThread = true;
+	double _seekPosition = -1;
 
 	void start()
 	{
@@ -275,8 +267,6 @@ private:
 
 	void allocateDepthBuffer(float width, float height)
 	{
-		_depthBuff.clear();
-		_depthBuff.allocate(width, height, 3);
 		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
 		{
 			if(depth_texture->isAllocated())depth_texture->clear();
@@ -291,8 +281,4 @@ private:
 		depth_height = height;
 		raw_depth_texture->setRGToRGBASwizzles(true);
 	}
-	void listSensorProfile();
-	void listStreamingProfile(const rs2::sensor& sensor);
-	void process();
-	bool _useThread = true;
 };

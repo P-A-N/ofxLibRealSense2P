@@ -45,8 +45,9 @@ void ofxLibRealSense2P::setupFilter()
 	disparity_to_depth = new rs2::disparity_transform(false);
 }
 
-void ofxLibRealSense2P::startStream()
+void ofxLibRealSense2P::startStream(bool threaded)
 {
+	_useThread = threaded;
 	rs2_pipeline = make_shared<rs2::pipeline>();
 	rs2::config config = rs2config.getConfig();
 	if (bReadFile)
@@ -235,19 +236,20 @@ void ofxLibRealSense2P::update()
 	bFrameNew = _isFrameNew.load(memory_order_acquire);
 	if (bFrameNew)
 	{
-		if (_colBuff.isAllocated())
+		if (rs2video_queue.poll_for_frame(&_color))
 		{
-			rs2video_queue.poll_for_frame(&_color);
-			color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
+			rs2::video_frame videoFrame = _color.as<rs2::video_frame>();
+			color_texture->loadData((unsigned char *)videoFrame.get_data(), videoFrame.get_width(), videoFrame.get_height(), GL_RGB);
 		}
-		if (_irBuff.isAllocated())
+		if (rs2ir_queue.poll_for_frame(&_ir))
 		{
-			ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
+			rs2::video_frame irFrame = _ir.as<rs2::video_frame>();
+			ir_tex->loadData((unsigned char *)irFrame.get_data(), irFrame.get_width(), irFrame.get_height(), GL_LUMINANCE);
 		}
-		if (_rawDepthBuff.isAllocated())
+		if (rs2depth_queue.poll_for_frame(&_depth))
 		{
-			rs2depth_queue.poll_for_frame(&_depth);
-			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(_depth.as<rs2::depth_frame>());
+			rs2::depth_frame depthFrame = _depth.as<rs2::depth_frame>();
+			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
 			if (!raw_depth_texture->isAllocated() || raw_depth_texture->getWidth() != normalizedDepthFrame.get_width() || raw_depth_texture->getHeight() != normalizedDepthFrame.get_height())
 			{
 				//width - height will be changed when Decimate filter applied. reallocate when the size is different
@@ -257,9 +259,8 @@ void ofxLibRealSense2P::update()
 			{
 				intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 			}
-			memcpy(_depthBuff.getData(),(uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);
-			raw_depth_texture->loadData(_rawDepthBuff);
-			depth_texture->loadData(_depthBuff.getData(), _depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB);
+			raw_depth_texture->loadData((uint16_t*)depthFrame.get_data(), depthFrame.get_width(), depthFrame.get_height(), GL_LUMINANCE);
+			depth_texture->loadData((unsigned char*)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height(), GL_RGB);
 		}
 	}
 	_isFrameNew.store(false, memory_order_relaxed);
@@ -285,27 +286,14 @@ void ofxLibRealSense2P::process()
 		}
 		if (color_enabled) {
 			rs2::video_frame colFrame = frame.get_color_frame();
-			if (!_colBuff.isAllocated() || _colBuff.getWidth() != colFrame.get_width() || _colBuff.getHeight() != colFrame.get_height())
-			{
-				_colBuff.allocate(colFrame.get_width(), colFrame.get_height(), 3);
-			}
-			memcpy(_colBuff.getData(), (uint8_t*)colFrame.get_data(), colFrame.get_width() * colFrame.get_height() * sizeof(uint8_t) * 3);
 			rs2video_queue.enqueue(colFrame);
 		}
 		if (ir_enabled) {
 			rs2::video_frame irFrame = frame.get_infrared_frame();
-			if (!_irBuff.isAllocated() || _irBuff.getWidth() != irFrame.get_width() || _irBuff.getHeight() != irFrame.get_height())
-			{
-				_irBuff.allocate(irFrame.get_width(), irFrame.get_height(), 3);
-			}
-			memcpy(_irBuff.getData(), (uint8_t*)irFrame.get_data(), irFrame.get_width() * irFrame.get_height() * sizeof(uint8_t));
 			rs2ir_queue.enqueue(irFrame);
 		}
 		if (depth_enabled) {
 			rs2::depth_frame depthFrame = frame.get_depth_frame();
-			//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
-			//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
-			//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
 			bool revert_disparity = false;
 			for (auto f : filters)
 			{
@@ -322,11 +310,6 @@ void ofxLibRealSense2P::process()
 			{
 				depthFrame = disparity_to_depth->process(depthFrame);
 			}
-			if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
-			{
-				_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
-			}
-			memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
 			if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
 			if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
 

@@ -200,11 +200,7 @@ void ofxLibRealSense2P::setPosition(double position)
 {
 	if (this->isPlayback())
 	{
-		rs2::playback playback = rs2device.as<rs2::playback>();
-		auto duration_db = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(playback.get_duration());
-		auto single_percent = duration_db.count();
-		auto seek_time = std::chrono::duration<double, std::nano>(position * single_percent);
-		playback.seek(std::chrono::duration_cast<std::chrono::nanoseconds>(seek_time));
+		_seekingPosition = position;
 	}
 	else
 	{
@@ -278,6 +274,18 @@ void ofxLibRealSense2P::threadedFunction()
 void ofxLibRealSense2P::process()
 {
 	rs2::frameset frame, alignedFrame;
+	if (this->isPlayback() && _seekingPosition != -1)
+	{
+		double seek_position = _seekingPosition;
+		rs2::playback playback = rs2device.as<rs2::playback>();
+		auto duration_db = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(playback.get_duration());
+		auto single_percent = duration_db.count();
+		auto seek_time = std::chrono::duration<double, std::nano>(seek_position * single_percent);
+		playback.seek(std::chrono::duration_cast<std::chrono::nanoseconds>(seek_time));
+		_seekingPosition = -1;
+	}
+
+
 	if (rs2_pipeline->poll_for_frames(&frame)) {
 		if (bAligned)
 		{

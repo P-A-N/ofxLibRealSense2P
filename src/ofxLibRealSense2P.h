@@ -239,7 +239,7 @@ private:
 	void listStreamingProfile(const rs2::sensor& sensor);
 	void process();
 	bool _useThread = true;
-	double _seekPosition = -1;
+	double _seekingPosition = -1;
 
 	void start()
 	{

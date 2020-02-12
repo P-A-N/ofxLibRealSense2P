@@ -20,11 +20,12 @@ typedef enum rs2_timestamp_domain
 {
     RS2_TIMESTAMP_DOMAIN_HARDWARE_CLOCK, /**< Frame timestamp was measured in relation to the camera clock */
     RS2_TIMESTAMP_DOMAIN_SYSTEM_TIME,    /**< Frame timestamp was measured in relation to the OS system clock */
+    RS2_TIMESTAMP_DOMAIN_GLOBAL_TIME,    /**< Frame timestamp was measured in relation to the camera clock and converted to OS system clock by constantly measure the difference*/
     RS2_TIMESTAMP_DOMAIN_COUNT           /**< Number of enumeration values. Not a valid input: intended to be used in for-loops. */
 } rs2_timestamp_domain;
 const char* rs2_timestamp_domain_to_string(rs2_timestamp_domain info);
 
-/** \brief Per-Frame-Metadata are set of read-only properties that might be exposed for each individual frame */
+/** \brief Per-Frame-Metadata is the set of read-only properties that might be exposed for each individual frame. */
 typedef enum rs2_frame_metadata_value
 {
     RS2_FRAME_METADATA_FRAME_COUNTER                        , /**< A sequential index managed per-stream. Integer value*/
@@ -40,7 +41,7 @@ typedef enum rs2_frame_metadata_value
     RS2_FRAME_METADATA_BACKEND_TIMESTAMP                    , /**< Timestamp get from uvc driver. usec*/
     RS2_FRAME_METADATA_ACTUAL_FPS                           , /**< Actual fps */
     RS2_FRAME_METADATA_FRAME_LASER_POWER                    , /**< Laser power value 0-360. */
-    RS2_FRAME_METADATA_FRAME_LASER_POWER_MODE               , /**< Laser power mode. Zero corresponds to Laser power switched off and one for switched on. */
+    RS2_FRAME_METADATA_FRAME_LASER_POWER_MODE               , /**< Laser power mode. Zero corresponds to Laser power switched off and one for switched on. deprecated, replaced by RS2_FRAME_METADATA_FRAME_EMITTER_MODE*/
     RS2_FRAME_METADATA_EXPOSURE_PRIORITY                    , /**< Exposure priority. */
     RS2_FRAME_METADATA_EXPOSURE_ROI_LEFT                    , /**< Left region of interest for the auto exposure Algorithm. */
     RS2_FRAME_METADATA_EXPOSURE_ROI_RIGHT                   , /**< Right region of interest for the auto exposure Algorithm. */
@@ -57,6 +58,9 @@ typedef enum rs2_frame_metadata_value
     RS2_FRAME_METADATA_MANUAL_WHITE_BALANCE                 , /**< Color image white balance. */
     RS2_FRAME_METADATA_POWER_LINE_FREQUENCY                 , /**< Power Line Frequency for anti-flickering Off/50Hz/60Hz/Auto. */
     RS2_FRAME_METADATA_LOW_LIGHT_COMPENSATION               , /**< Color lowlight compensation. Zero corresponds to switched off. */
+    RS2_FRAME_METADATA_FRAME_EMITTER_MODE                   , /**< Emitter mode: 0 - all emitters disabled. 1 - laser enabled. 2 - auto laser enabled (opt). 3 - LED enabled (opt).*/
+    RS2_FRAME_METADATA_FRAME_LED_POWER                      , /**< Led power value 0-360. */
+    RS2_FRAME_METADATA_RAW_FRAME_SIZE                       , /**< The number of transmitted payload bytes, not including metadata */
     RS2_FRAME_METADATA_COUNT
 } rs2_frame_metadata_value;
 const char* rs2_frame_metadata_to_string(rs2_frame_metadata_value metadata);
@@ -99,12 +103,28 @@ rs2_timestamp_domain rs2_get_frame_timestamp_domain(const rs2_frame* frameset, r
 rs2_time_t rs2_get_frame_timestamp(const rs2_frame* frame, rs2_error** error);
 
 /**
+* retrieve frame parent sensor from frame handle
+* \param[in] frame      handle returned from a callback
+* \param[out] error     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return               the parent sensor of the frame
+*/
+rs2_sensor* rs2_get_frame_sensor(const rs2_frame* frame, rs2_error** error);
+
+/**
 * retrieve frame number from frame handle
 * \param[in] frame      handle returned from a callback
 * \param[out] error     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
 * \return               the frame nubmer of the frame, in milliseconds since the device was started
 */
 unsigned long long rs2_get_frame_number(const rs2_frame* frame, rs2_error** error);
+
+/**
+* retrieve data size from frame handle
+* \param[in] frame      handle returned from a callback
+* \param[out] error     if non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return               the size of the frame data
+*/
+int rs2_get_frame_data_size(const rs2_frame* frame, rs2_error** error);
 
 /**
 * retrieve data from frame handle
@@ -237,6 +257,19 @@ int rs2_is_frame_extendable_to(const rs2_frame* frame, rs2_extension extension_t
 */
 rs2_frame* rs2_allocate_synthetic_video_frame(rs2_source* source, const rs2_stream_profile* new_stream, rs2_frame* original,
     int new_bpp, int new_width, int new_height, int new_stride, rs2_extension frame_type, rs2_error** error);
+
+/**
+* Allocate new motion frame using a frame-source provided form a processing block
+* \param[in] source      Frame pool to allocate the frame from
+* \param[in] new_stream  New stream profile to assign to newly created frame
+* \param[in] original    A reference frame that can be used to fill in auxilary information like format, width, height, bpp, stride (if applicable)
+* \param[in] frame_type  New value for frame type for the allocated frame
+* \param[out] error      If non-null, receives any error that occurs during this call, otherwise, errors are ignored
+* \return                reference to a newly allocated frame, must be released with release_frame
+*                        memory for the frame is likely to be re-used from previous frame, but in lack of available frames in the pool will be allocated from the free store
+*/
+rs2_frame* rs2_allocate_synthetic_motion_frame(rs2_source* source, const rs2_stream_profile* new_stream, rs2_frame* original,
+    rs2_extension frame_type, rs2_error** error);
 
 /**
 * Allocate new points frame using a frame-source provided from a processing block

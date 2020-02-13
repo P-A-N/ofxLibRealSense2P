@@ -5,7 +5,7 @@
 #include "ofMain.h"
 #include "ofxLRS2/Filter.h"
 #include "ofxLRS2/Rs2Config.h"
-#include "ofxLRS2/Frames/BaseFrameUnit.h"
+#include "ofxLRS2/BaseFrameUnit.h"
 
 class ofxLibRealSense2P : public ofThread
 {

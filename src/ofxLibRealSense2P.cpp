@@ -93,7 +93,8 @@ void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbT
 {
 	_depth_frame = make_shared<BaseFrameUnit<unsigned char>>(width, height, fps, 3, GL_RGB, useArbTex);
 	_raw_depth_frame = make_shared<BaseFrameUnit<unsigned short>>(width, height, fps, 1, GL_R16, useArbTex);
-	
+	original_depth_width = width;
+	original_depth_height = height;
 	if (!bReadFile)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, fps);
@@ -246,7 +247,7 @@ void ofxLibRealSense2P::threadedFunction()
 
 void ofxLibRealSense2P::process()
 {
-	rs2::frameset frame, alignedFrame;
+	rs2::frameset frame;
 	if (this->isPlayback() && _seekingPosition != -1)
 	{
 		double seek_position = _seekingPosition;

@@ -215,19 +215,15 @@ private:
 	rs2::frame _depth;
 	rs2_intrinsics intr;
 
-	shared_ptr<BaseFrameUnit<>> _color_Frame, _ir_frame, _depth_frame;
+	shared_ptr<BaseFrameUnit<>> _color_frame, _ir_frame, _depth_frame;
 	shared_ptr<BaseFrameUnit<unsigned short>> _raw_depth_frame;
 
 	bool _isRecording;
-	int _color_fps, _ir_fps, _depth_fps;
 	vector<shared_ptr<ofxlibrealsense2p::Filter>> filters;
 	float depthScale;
 	int deviceId;
 	atomic_bool _isFrameNew;
 	bool bFrameNew = false;
-	int color_width, color_height;
-	int ir_width, ir_height;
-	int depth_width, depth_height;
 	int original_depth_width, original_depth_height;
 	bool bReadFile = false;
 	bool bAligned = false;
@@ -265,20 +261,23 @@ private:
 		throw std::runtime_error("Device does not have a depth sensor");
 	}
 
-	void allocateDepthBuffer(float width, float height)
+	void updateDepthFrameForPostProcess(rs2::depth_frame& depthFrame)
 	{
-		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != width || depth_texture->getHeight() != height))
+		bool revert_disparity = false;
+		for (auto f : filters)
 		{
-			if(depth_texture->isAllocated())depth_texture->clear();
-			depth_texture->allocate(width, height, GL_RGB, bUseArbTexDepth);
+			if (*(f->getIsEnabled()))
+			{
+				depthFrame = f->getFilter()->process(depthFrame);
+				if (f->getFilterName() == "Disparity")
+				{
+					revert_disparity = true;
+				}
+			}
 		}
-		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != width || raw_depth_texture->getHeight() != height))
+		if (revert_disparity)
 		{
-			raw_depth_texture->clear();
-			raw_depth_texture->allocate(width, height, GL_R16, bUseArbTexDepth);
+			depthFrame = disparity_to_depth->process(depthFrame);
 		}
-		depth_width = width;
-		depth_height = height;
-		raw_depth_texture->setRGToRGBASwizzles(true);
 	}
 };

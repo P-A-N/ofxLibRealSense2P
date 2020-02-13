@@ -77,37 +77,23 @@ void ofxLibRealSense2P::stopStream()
 
 void ofxLibRealSense2P::enableColor(int width, int height, int fps, bool useArbTex)
 {
-	color_width = width;
-	color_height = height;
-	color_texture = make_shared<ofTexture>();
-	color_texture->allocate(color_width, color_height, GL_RGB, useArbTex);
-	_color_fps = fps;
+	_color_frame = make_shared < BaseFrameUnit<unsigned char>>(width, height, fps, 3, GL_RGB, useArbTex);
 	if(!bReadFile)
-		rs2config.enable_stream(RS2_STREAM_COLOR, -1, color_width, color_height, RS2_FORMAT_RGB8, fps);
-	color_enabled = true;
+		rs2config.enable_stream(RS2_STREAM_COLOR, -1, width, height, RS2_FORMAT_RGB8, fps);
 }
 
 void ofxLibRealSense2P::enableIr(int width, int height, int fps, bool useArbTex)
 {
-	ir_width = width;
-	ir_height = height;
-	_ir_fps = fps;
-	ir_tex = make_shared<ofTexture>();
-	ir_tex->allocate(ir_width, ir_height, GL_LUMINANCE, useArbTex);
+	_ir_frame = make_shared < BaseFrameUnit<unsigned char>>(width, height, fps, 1, GL_LUMINANCE, useArbTex);
 	if (!bReadFile)
-		rs2config.enable_stream(RS2_STREAM_INFRARED, -1, ir_width, ir_height, RS2_FORMAT_Y8, fps);
+		rs2config.enable_stream(RS2_STREAM_INFRARED, -1, width, height, RS2_FORMAT_Y8, fps);
 }
 
 void ofxLibRealSense2P::enableDepth(int width, int height, int fps, bool useArbTex)
 {
-	bUseArbTexDepth = useArbTex;
-	original_depth_width = width;
-	original_depth_height = height;
-	_depth_frame = make_shared<BaseFrameUnit<unsigned char>>();
-	_raw_depth_frame = make_shared<BaseFrameUnit<unsigned short>>();
-	_depth_frame->setFps(fps);
-	_raw_depth_frame->setFps(fps);
-
+	_depth_frame = make_shared<BaseFrameUnit<unsigned char>>(width, height, fps, 3, GL_RGB, useArbTex);
+	_raw_depth_frame = make_shared<BaseFrameUnit<unsigned short>>(width, height, fps, 1, GL_R16, useArbTex);
+	
 	if (!bReadFile)
 	{
 		rs2config.enable_stream(RS2_STREAM_DEPTH, -1, original_depth_width, original_depth_height, RS2_FORMAT_Z16, fps);
@@ -236,12 +222,12 @@ void ofxLibRealSense2P::update()
 		if (_ir_frame) _ir_frame->updateTexture();
 		if (_raw_depth_frame)
 		{
-			_raw_depth_frame->resetTextureIfPossible(GL_R16);
+			_raw_depth_frame->resetTextureIfPossible();
 			_raw_depth_frame->updateTexture(true);
 		}
 		if(_depth_frame)
 		{
-			_depth_frame->resetTextureIfPossible(GL_RGB);
+			_depth_frame->resetTextureIfPossible();
 			_depth_frame->updateTexture();
 		}
 	}
@@ -280,21 +266,21 @@ void ofxLibRealSense2P::process()
 			frame = align.process(frame);
 		}
 		if (_color_frame) {
-			_color_frame->copyPixels(frame.get_color_frame(), 3);
+			_color_frame->copyPixels(frame.get_color_frame());
 		}
 		if (_ir_frame) {
-			_ir_frame->copyPixels(frame.get_infrared_frame(), 1);
+			_ir_frame->copyPixels(frame.get_infrared_frame());
 		}
 		if (_depth_frame) {
 			rs2::depth_frame depthFrame = frame.get_depth_frame();
 			updateDepthFrameForPostProcess(depthFrame);
 			if (_raw_depth_frame)
 			{
-				_raw_depth_frame->copyPixels(depthFrame, 1);
+				_raw_depth_frame->copyPixels(depthFrame);
 			}
 			
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame.as<rs2::depth_frame>());
-			_depth_frame->copyPixels(normalizedDepthFrame, 3);
+			_depth_frame->copyPixels(normalizedDepthFrame);
 
 			if (depthFrame && intr.width != normalizedDepthFrame.get_width() || intr.height != normalizedDepthFrame.get_height())
 			{

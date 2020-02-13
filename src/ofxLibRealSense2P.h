@@ -84,7 +84,7 @@ public:
 	//make frames size aligned
 	void setAligned(bool aligned)
 	{
-		if (depth_enabled && color_enabled)
+		if (_depth_frame && _color_frame)
 		{
 			this->bAligned = aligned;
 		}
@@ -96,70 +96,46 @@ public:
 
 	void drawDepthRaw(int x, int y)
 	{
-		if (depth_enabled)
-			raw_depth_texture->draw(x, y);
+		if (_raw_depth_frame)
+			_raw_depth_frame->drawTexture(x, y);
 	}
 
 	void drawDepth(int x, int y)
 	{
-		if(depth_enabled)
-			depth_texture->draw(x, y);
+		if(_depth_frame)
+			_depth_frame->drawTexture(x, y);
 	}
 
 	void drawColor(int x, int y)
 	{
-		if (color_enabled)
-			color_texture->draw(x, y);
+		if (_color_frame)
+			_color_frame->drawTexture(x, y);
 	}
 
 	void drawIR(int x, int y)
 	{
-		if (ir_enabled)
-			ir_tex->draw(x, y);
+		if (_ir_frame)
+			_ir_frame->drawTexture(x, y);
 	}
 
 	float getDepthWidth() const
 	{
-		return depth_width;
+		return _depth_frame->getWidth();
 	}
 
 	float getDepthHeight() const
 	{
-		return depth_height;
+		return _depth_frame->getHeight();
 	}
 
 	float getColorWidth() const
 	{
-		if (bAligned)
-		{
-			//if (_color)
-			//{
-			//	return _color.as<rs2::video_frame>().get_width();
-			//}
-			//else
-			{
-				//ofLogWarning() << "color frame is not updated";
-				return color_width;
-			}
-		}
-		return color_width;
+		return _color_frame->getWidth();//if it is aligned, then it would not the same value as its originals
 	}
 
 	float getColorHeight() const
 	{
-		if (bAligned)
-		{
-			//if (_color)
-			//{
-			//	return _color.as<rs2::video_frame>().get_height();
-			//}
-			//else
-			{
-				//ofLogWarning() << "color frame is not updated";
-				return color_height;
-			}
-		}
-		return color_height;
+		return _color_frame->getHeight();//if it is aligned, then it would not the same value as its originals
 	}
 
 	bool isFrameNew()
@@ -169,17 +145,17 @@ public:
 
 	shared_ptr<ofTexture> getDepthTexture() const
 	{
-		return depth_texture;
+		return _depth_frame->getTexture();
 	}
 
 	shared_ptr<ofTexture> getDepthRawTexture() const
 	{
-		return raw_depth_texture;
+		return _raw_depth_frame->getTexture();
 	}
 
 	shared_ptr<ofTexture> getColorTexture()
 	{
-		return color_texture;
+		return _color_frame->getTexture();
 	}
 
 	float getDepthScale()

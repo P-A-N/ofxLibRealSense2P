@@ -233,17 +233,13 @@ void ofxLibRealSense2P::update()
 	bFrameNew = _isFrameNew.load(memory_order_acquire);
 	if (bFrameNew)
 	{
-		if (color_enabled)
-			color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
-		if (ir_enabled)
-			ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
-		if (depth_enabled)
+		if (_color_Frame)
+			color_texture->loadData(_color_Frame->getData(), color_width, color_height, GL_RGB);
+		if (_ir_frame)
+			ir_tex->loadData(_ir_frame->getData(), ir_width, ir_height, GL_LUMINANCE);
+		if (_raw_depth_frame)
 		{
-			if (!raw_depth_texture->isAllocated() || raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight())
-			{
-				raw_depth_texture->clear();
-				raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
-			}
+			_raw_depth_frame->resetTexture(GL_R16);
 			raw_depth_texture->setRGToRGBASwizzles(true);
 			raw_depth_texture->loadData(_rawDepthBuff);
 

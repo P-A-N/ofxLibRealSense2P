@@ -5,6 +5,7 @@
 #include "ofMain.h"
 #include "ofxLRS2/Filter.h"
 #include "ofxLRS2/Rs2Config.h"
+#include "ofxLRS2/Frames/BaseFrameUnit.h"
 
 class ofxLibRealSense2P : public ofThread
 {
@@ -214,15 +215,14 @@ private:
 	rs2::frame _depth;
 	rs2_intrinsics intr;
 
-	ofPixels _colBuff, _irBuff, _depthBuff;
-	ofShortPixels _rawDepthBuff;
+	shared_ptr<BaseFrameUnit<>> _color_Frame, _ir_frame, _depth_frame;
+	shared_ptr<BaseFrameUnit<unsigned short>> _raw_depth_frame;
 
 	bool _isRecording;
 	int _color_fps, _ir_fps, _depth_fps;
 	vector<shared_ptr<ofxlibrealsense2p::Filter>> filters;
 	float depthScale;
 	int deviceId;
-	bool color_enabled = false, ir_enabled = false, depth_enabled = false;
 	atomic_bool _isFrameNew;
 	bool bFrameNew = false;
 	int color_width, color_height;
@@ -234,7 +234,6 @@ private:
 	bool bUseArbTexDepth = true;
 	string readFilePath;
 	string _recordFilePath;
-	ofPtr<ofTexture> depth_texture, raw_depth_texture, color_texture, ir_tex;
 	rs2::disparity_transform* disparity_to_depth;
 	void listSensorProfile();
 	void listStreamingProfile(const rs2::sensor& sensor);

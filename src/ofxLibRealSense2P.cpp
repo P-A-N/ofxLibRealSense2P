@@ -232,48 +232,35 @@ double ofxLibRealSense2P::getPosition() const
 void ofxLibRealSense2P::update()
 {
 	if (!_useThread)process();
-	if (_color_channel.tryReceive(_colBuff))
-	{
-		//rs2video_queue.poll_for_frame(&_color);
-		color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
-	}
-	if (_ir_channel.tryReceive(_irBuff))
-	{
-		ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
-	}
-	if (_raw_depth_channel.tryReceive(_rawDepthBuff))
-	{
-		if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight()))
-		{
-			raw_depth_texture->clear();
-			raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
-		}
-		raw_depth_texture->setRGToRGBASwizzles(true);
-		raw_depth_texture->loadData(_rawDepthBuff);
-	}
-	if (_depth_channel.tryReceive(_depthBuff))
-	{
-		if (!depth_texture->isAllocated() || (depth_texture->getWidth() != _depthBuff.getWidth() || depth_texture->getHeight() != _depthBuff.getHeight()))
-		{
-			if (depth_texture->isAllocated())depth_texture->clear();
-			depth_texture->allocate(_depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB, bUseArbTexDepth);
-		}
-		depth_width = _depthBuff.getWidth();
-		depth_height = _depthBuff.getHeight();
-		depth_texture->loadData(_depthBuff);
-	}
+
 	bFrameNew = _isFrameNew.load(memory_order_acquire);
 	if (bFrameNew)
 	{
-		if (rs2depth_queue.poll_for_frame(&_depth))
+		if (color_enabled)
+			color_texture->loadData(_colBuff.getData(), color_width, color_height, GL_RGB);
+		if (ir_enabled)
+			ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
+		if (depth_enabled)
 		{
-			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(_depth.as<rs2::depth_frame>());
-			if (_depth && intr.width != normalizedDepthFrame.get_width() || intr.height != normalizedDepthFrame.get_height())
+			if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight()))
 			{
-				intr = _depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+				raw_depth_texture->clear();
+				raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
 			}
+			raw_depth_texture->setRGToRGBASwizzles(true);
+			raw_depth_texture->loadData(_rawDepthBuff);
+
+			if (!depth_texture->isAllocated() || (depth_texture->getWidth() != _depthBuff.getWidth() || depth_texture->getHeight() != _depthBuff.getHeight()))
+			{
+				if (depth_texture->isAllocated())depth_texture->clear();
+				depth_texture->allocate(_depthBuff.getWidth(), _depthBuff.getHeight(), GL_RGB, bUseArbTexDepth);
+			}
+			depth_width = _depthBuff.getWidth();
+			depth_height = _depthBuff.getHeight();
+			depth_texture->loadData(_depthBuff);
 		}
 	}
+	rs2depth_queue.poll_for_frame(&_depth);
 	_isFrameNew.store(false, memory_order_relaxed);
 }
 
@@ -297,30 +284,17 @@ void ofxLibRealSense2P::process()
 		}
 		if (color_enabled) {
 			rs2::video_frame colFrame = frame.get_color_frame();
-			//if (!_colBuff.isAllocated() || _colBuff.getWidth() != colFrame.get_width() || _colBuff.getHeight() != colFrame.get_height())
-			//{
-			ofPixels pix;
-			pix.allocate(colFrame.get_width(), colFrame.get_height(), 3);
-			//}
-			memcpy(pix.getData(), (uint8_t*)colFrame.get_data(), colFrame.get_width() * colFrame.get_height() * sizeof(uint8_t) * 3);
-			_color_channel.send(pix);
-			//rs2video_queue.enqueue(colFrame);
+			_colBuff.allocate(colFrame.get_width(), colFrame.get_height(), 3);
+			memcpy(_colBuff.getData(), (uint8_t*)colFrame.get_data(), colFrame.get_width() * colFrame.get_height() * sizeof(uint8_t) * 3);
 		}
 		if (ir_enabled) {
 			rs2::video_frame irFrame = frame.get_infrared_frame();
-			//if (!_irBuff.isAllocated() || _irBuff.getWidth() != irFrame.get_width() || _irBuff.getHeight() != irFrame.get_height())
-			//{
-			ofPixels pix;
-			pix.allocate(irFrame.get_width(), irFrame.get_height(), 3);
-			//}
-			memcpy(pix.getData(), (uint8_t*)irFrame.get_data(), irFrame.get_width() * irFrame.get_height() * sizeof(uint8_t));
-			_ir_channel.send(pix);
+			_irBuff.allocate(irFrame.get_width(), irFrame.get_height(), 3);
+			memcpy(_irBuff.getData(), (uint8_t*)irFrame.get_data(), irFrame.get_width() * irFrame.get_height() * sizeof(uint8_t));
 		}
 		if (depth_enabled) {
 			rs2::depth_frame depthFrame = frame.get_depth_frame();
-			//ofLog() << (unsigned short)_rawDepthBuff.getData()[0] << " " << ((uint16_t *)depthFrame.get_data())[0];
-			//rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame);
-			//_depthBuff = (uint8_t *)normalizedDepthFrame.get_data();
+
 			bool revert_disparity = false;
 			for (auto f : filters)
 			{
@@ -337,25 +311,17 @@ void ofxLibRealSense2P::process()
 			{
 				depthFrame = disparity_to_depth->process(depthFrame);
 			}
-			//if (!_rawDepthBuff.isAllocated() || _rawDepthBuff.getWidth() != depthFrame.get_width() || _rawDepthBuff.getHeight() != depthFrame.get_height())
-			//{
-			ofShortPixels rawPix;
-			rawPix.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
-			//}
-			memcpy(rawPix.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
-			_raw_depth_channel.send(rawPix);
 
-
+			_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
+			memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame.as<rs2::depth_frame>());
-			ofPixels pix;
-			pix.allocate(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height(), 3);
-			memcpy(pix.getData(), (uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);
-			_depth_channel.send(pix);
-			//if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
-			//if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
-
+			_depthBuff.allocate(normalizedDepthFrame.get_width(), normalizedDepthFrame.get_height(), 3);
+			memcpy(_depthBuff.getData(), (uint8_t *)normalizedDepthFrame.get_data(), normalizedDepthFrame.get_width() * normalizedDepthFrame.get_height() * sizeof(uint8_t) * 3);
+			if (depthFrame && intr.width != normalizedDepthFrame.get_width() || intr.height != normalizedDepthFrame.get_height())
+			{
+				intr = depthFrame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+			}
 			rs2depth_queue.enqueue(depthFrame);
-
 		}
 		_isFrameNew.store(true, memory_order_release);
 	}

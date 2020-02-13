@@ -45,8 +45,9 @@ void ofxLibRealSense2P::setupFilter()
 	disparity_to_depth = new rs2::disparity_transform(false);
 }
 
-void ofxLibRealSense2P::startStream()
+void ofxLibRealSense2P::startStream(bool threaded)
 {
+	_useThread = threaded;
 	rs2_pipeline = make_shared<rs2::pipeline>();
 	rs2::config config = rs2config.getConfig();
 	if (bReadFile)
@@ -199,11 +200,7 @@ void ofxLibRealSense2P::setPosition(double position)
 {
 	if (this->isPlayback())
 	{
-		rs2::playback playback = rs2device.as<rs2::playback>();
-		auto duration_db = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(playback.get_duration());
-		auto single_percent = duration_db.count();
-		auto seek_time = std::chrono::duration<double, std::nano>(position * single_percent);
-		playback.seek(std::chrono::duration_cast<std::chrono::nanoseconds>(seek_time));
+		_seekingPosition = position;
 	}
 	else
 	{
@@ -242,7 +239,7 @@ void ofxLibRealSense2P::update()
 			ir_tex->loadData(_irBuff.getData(), ir_width, ir_height, GL_LUMINANCE);
 		if (depth_enabled)
 		{
-			if (!raw_depth_texture->isAllocated() || (raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight()))
+			if (!raw_depth_texture->isAllocated() || raw_depth_texture->getWidth() != _rawDepthBuff.getWidth() || raw_depth_texture->getHeight() != _rawDepthBuff.getHeight())
 			{
 				raw_depth_texture->clear();
 				raw_depth_texture->allocate(_rawDepthBuff.getWidth(), _rawDepthBuff.getHeight(), GL_R16, bUseArbTexDepth);
@@ -276,6 +273,18 @@ void ofxLibRealSense2P::threadedFunction()
 void ofxLibRealSense2P::process()
 {
 	rs2::frameset frame, alignedFrame;
+	if (this->isPlayback() && _seekingPosition != -1)
+	{
+		double seek_position = _seekingPosition;
+		rs2::playback playback = rs2device.as<rs2::playback>();
+		auto duration_db = std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(playback.get_duration());
+		auto single_percent = duration_db.count();
+		auto seek_time = std::chrono::duration<double, std::nano>(seek_position * single_percent);
+		playback.seek(std::chrono::duration_cast<std::chrono::nanoseconds>(seek_time));
+		_seekingPosition = -1;
+	}
+
+
 	if (rs2_pipeline->poll_for_frames(&frame)) {
 		if (bAligned)
 		{
@@ -294,7 +303,6 @@ void ofxLibRealSense2P::process()
 		}
 		if (depth_enabled) {
 			rs2::depth_frame depthFrame = frame.get_depth_frame();
-
 			bool revert_disparity = false;
 			for (auto f : filters)
 			{
@@ -311,7 +319,6 @@ void ofxLibRealSense2P::process()
 			{
 				depthFrame = disparity_to_depth->process(depthFrame);
 			}
-
 			_rawDepthBuff.allocate(depthFrame.get_width(), depthFrame.get_height(), 1);
 			memcpy(_rawDepthBuff.getData(), (uint16_t*)depthFrame.get_data(), depthFrame.get_width() * depthFrame.get_height() * sizeof(uint16_t));
 			rs2::video_frame normalizedDepthFrame = rs2colorizer.process(depthFrame.as<rs2::depth_frame>());
@@ -321,6 +328,8 @@ void ofxLibRealSense2P::process()
 			{
 				intr = depthFrame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 			}
+			if (depth_width != depthFrame.get_width()) depth_width = depthFrame.get_width(); //width will be changed when Decimate filter applied
+			if (depth_height != depthFrame.get_width()) depth_height = depthFrame.get_height(); //width will be changed when Decimate filter applied
 			rs2depth_queue.enqueue(depthFrame);
 		}
 		_isFrameNew.store(true, memory_order_release);
